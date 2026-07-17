@@ -1,0 +1,11 @@
+[project]
+name = "ai-interview-orchestrator"
+version = "0.1.0"
+description = "AI Interview 에이전트 오케스트레이터 — CrewAI + Ollama"
+requires-python = ">=3.11"
+dependencies = [
+    "crewai>=1.15.0,<2.0.0",
+]
+
+[project.scripts]
+orchestrate = "main:main"

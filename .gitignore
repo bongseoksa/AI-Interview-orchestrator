@@ -40,3 +40,7 @@ coverage/
 # AI agent state
 *.pkl
 agent_cache/
+
+# CrewAI
+output/
+*.db
