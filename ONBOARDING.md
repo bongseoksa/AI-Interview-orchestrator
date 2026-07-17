@@ -35,6 +35,10 @@ python3.13 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
+# 환경 변수 설정 (최초 1회)
+cp .env.example .env
+# .env 파일에 NOTION_TOKEN 값 설정
+
 # Ollama 모델 다운로드 (최초 1회)
 ollama pull gemma4:12b        # 기본 모델 (~6.6GB)
 ollama pull gemma4:26b        # 고성능 (선택, ~15GB)
@@ -62,6 +66,16 @@ python main.py infra          # 인프라 CI/CD
 python main.py data           # 데이터 파이프라인
 python main.py docs           # 문서 감사
 python main.py review         # 외부인사 리뷰
+
+# 4. 코드 생성 (타 레포 대상)
+python main.py codegen web "작업 설명"
+python main.py codegen server "작업 설명"
+
+# 5. 노션 조작
+python main.py notion list                    # 페이지 목록
+python main.py notion read <페이지>           # 읽기
+python main.py notion search <페이지> <키워드> # 블록 검색
+python main.py notion-edit <페이지> "편집 지시" # AI 편집
 ```
 
 ## 5. 종료
@@ -89,6 +103,9 @@ deactivate
 | `python main.py data` | 데이터 파이프라인 실행 |
 | `python main.py docs` | 문서 감사 실행 |
 | `python main.py review` | 외부인사 리뷰 실행 |
+| `python main.py codegen <repo> "설명"` | 타 레포 코드 생성 |
+| `python main.py notion list\|read\|write\|search\|...` | 노션 CLI 조작 |
+| `python main.py notion-edit <페이지> "지시"` | AI 노션 편집 |
 | `ollama serve` | Ollama 서버 시작 |
 | `ollama list` | 설치된 모델 목록 |
 | `ollama pull <model>` | 모델 다운로드 |
@@ -102,7 +119,10 @@ agents/               # 에이전트 YAML 정의 원본 (11개, SSOT)
 src/
   config/
     llm.py            # Ollama LLM 설정 + 모델 비교표
-  crews/              # 9개 Crew (각각 config/agents.yaml + config/tasks.yaml + crew.py)
+  tools/
+    file_tools.py     # 파일 조작 도구 (크로스 레포, 경로 검증)
+    notion_tools.py   # Notion REST API 도구 (9개 도구, 7% 안전 마진)
+  crews/              # 11개 Crew (각각 config/agents.yaml + config/tasks.yaml + crew.py)
     research/         # Step 1: 시장 조사 — 전략 관리자
     planning/         # Step 2-4: 기획 — PM + PjM
     architect/        # 아키텍처 설계 — 풀스택 아키텍트 + 백엔드 시니어
@@ -112,7 +132,9 @@ src/
     data/             # 데이터 파이프라인 — 데이터 엔지니어
     documentation/    # 문서 감사 — 서기관리 에이전트
     review/           # 외부인사 리뷰 — 외부인사
-scripts/              # 유틸리티 (sync-agents.sh)
+    codegen/          # 코드 생성 — 타 레포 코드 파일 생성
+    notion_edit/      # AI 노션 편집 — 키워드 검색 + AI 검증
+scripts/              # 유틸리티 (sync, 변환, 테스트 등)
 .claude/agents/       # Claude Code 서브에이전트 (7개)
 main.py               # CrewAI 실행 엔트리포인트
 output/               # Crew 실행 결과물 (gitignored)

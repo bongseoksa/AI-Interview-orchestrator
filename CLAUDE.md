@@ -11,7 +11,7 @@
 
 ## AI 모델 & 에이전트 프레임워크
 
-- **프레임워크**: CrewAI v1.15.3 (MIT, self-hosted, 무료)
+- **프레임워크**: CrewAI v1.15.4 (MIT, self-hosted, 무료)
 - **LLM**: Ollama 로컬 모델 (Tier 1: Gemma 4 26B 개발용 고정, Tier 2: Gemma 4 12B 유저 대면용)
 - **Python**: 3.13 (.venv 가상환경)
 - **실행**: `source .venv/bin/activate && python main.py <command>`
@@ -86,6 +86,14 @@ python main.py <command>      # 사용 가능한 명령어는 '실행 명령어'
 - 자율 에이전트 실행 시 Ollama 로컬 모델만 사용
 - Claude Code 서브에이전트(.claude/agents/)는 사용 가능 (기존 구독 활용)
 
+## 환경 설정
+
+```bash
+# .env 파일 설정 (최초 1회)
+cp .env.example .env
+# .env에 NOTION_TOKEN 값 설정 (Notion Integration Token)
+```
+
 ## 디렉토리 구조
 
 ```
@@ -94,6 +102,9 @@ src/
   config/
     llm.py            # Ollama LLM 설정 (2-Tier: 26B 고성능 / 12B 경량)
     crew_logger.py    # Crew 실행 로거 (BaseEventListener 기반)
+  tools/
+    file_tools.py     # 파일 조작 도구 (크로스 레포 읽기/쓰기, 경로 안전성 검증)
+    notion_tools.py   # Notion REST API 도구 (읽기/쓰기/검색/수정/삭제/삽입)
   crews/
     research/         # Step 1: 시장 조사 — 전략 관리자
     planning/         # Step 2-4: 기획 — PM + PjM
@@ -104,19 +115,25 @@ src/
     data/             # 데이터 파이프라인 — 데이터 엔지니어
     documentation/    # 문서 감사 — 서기관리 에이전트 + 노션 동기화
     review/           # 외부인사 리뷰 — 외부인사 (Devil's Advocate)
+    codegen/          # 코드 생성 — 설계 문서 기반 타 레포 코드 생성
+    notion_edit/      # AI 노션 편집 — 키워드 검색 + AI 검증으로 정확한 블록 편집
     (각 Crew: config/agents.yaml + config/tasks.yaml + crew.py)
-scripts/              # 유틸리티 (sync, 변환 등)
+scripts/              # 유틸리티 (sync, 변환, 테스트 등)
 docs/                 # 설계 문서
 .claude/agents/       # 이 레포에서 사용하는 Claude Code 서브에이전트
 main.py               # CrewAI 실행 엔트리포인트
 output/               # Crew 실행 결과물 (gitignored)
 logs/                 # Crew 실행 로그 — 에이전트 발화 추적용 (gitignored)
+.env                  # 환경 변수 (NOTION_TOKEN 등, gitignored)
+.env.example          # 환경 변수 템플릿
 ```
 
 ## 실행 명령어
 
 ```bash
 source .venv/bin/activate
+
+# === 설계 Crew (Ollama 로컬 모델) ===
 python main.py research      # Step 1: 시장 조사
 python main.py planning      # Step 2-4: 기획 (PRD/스펙/유저스토리)
 python main.py architect     # 아키텍처 설계 (스키마/데이터 흐름)
@@ -127,6 +144,26 @@ python main.py data          # 데이터 (스키마 최적화/파이프라인)
 python main.py docs          # 문서 감사 (정합성/CHANGELOG/노션 초안)
 python main.py review        # 외부인사 리뷰 (Devil's Advocate)
 
+# === 코드 생성 (타 레포 대상) ===
+python main.py codegen web "학습 페이지 컴포넌트 생성"     # web 레포에 코드 생성
+python main.py codegen server "API 엔드포인트 생성"        # server 레포에 코드 생성
+python main.py codegen orchestrator "스크립트 생성"        # orchestrator 레포에 코드 생성
+
+# === 노션 직접 조작 (CLI) ===
+python main.py notion list                                # 페이지 목록
+python main.py notion read <페이지>                       # 페이지 읽기 (전체)
+python main.py notion write <페이지> "마크다운 내용"       # 페이지에 추가
+python main.py notion search <페이지> <키워드>            # 블록 검색 (ID+맥락)
+python main.py notion update <블록ID> "새 내용"            # 블록 수정
+python main.py notion delete <블록ID>                     # 블록 삭제
+python main.py notion insert <페이지> <기준블록ID> "내용"  # 블록 뒤에 삽입
+
+# === AI 노션 편집 (AI 모델이 검색+검증+편집) ===
+python main.py notion-edit <페이지> "편집 지시"
+# 예: python main.py notion-edit 의사결정 "Step 4 상태를 완료로 변경"
+# 예: python main.py notion-edit 기획서 "카테고리 수를 9개에서 10개로 수정"
+
+# === 유틸리티 스크립트 ===
 # 노션 동기화 (서기에이전트 초안 → Notion 반영)
 python scripts/sync_notion.py              # 대화형 (페이지별 확인)
 python scripts/sync_notion.py --dry-run    # 미리보기만
@@ -140,7 +177,7 @@ python scripts/translate_content.py --nodes-only   # 노드만
 python scripts/translate_content.py --questions-only  # 질문만
 ```
 
-## Crew-에이전트 매핑 (9 Crew, 11 에이전트)
+## Crew-에이전트 매핑 (11 Crew, 13 에이전트)
 
 | Crew | 에이전트 | 산출물 |
 |------|----------|--------|
@@ -153,8 +190,34 @@ python scripts/translate_content.py --questions-only  # 질문만
 | DataCrew | 데이터 엔지니어 | 스키마 최적화, 파이프라인 |
 | DocumentationCrew | 서기관리 | 문서 감사, CHANGELOG, 노션 업데이트 초안 |
 | ReviewCrew | 외부인사 | Devil's Advocate, 경쟁력 분석 |
+| CodegenCrew | 코드 생성 개발자 | 타 레포(web/server) 코드 파일 생성 |
+| NotionEditCrew | 노션 편집 에이전트 | 키워드 검색 → AI 검증 → 정확한 블록 편집 |
 
 > 모든 Crew는 Tier 1 (`gemma4:26b`) 사용 — 품질 최우선, 응답 지연 허용
+
+### 커스텀 도구 (src/tools/)
+
+| 도구 | 파일 | 용도 |
+|------|------|------|
+| `list_directory` | file_tools.py | 디렉토리 목록 (IGNORE_DIRS 필터링) |
+| `list_directory_recursive` | file_tools.py | 재귀 탐색 (max_depth 제한) |
+| `read_file` | file_tools.py | 파일 읽기 (프로젝트 범위 내 경로 검증) |
+| `write_file` | file_tools.py | 파일 쓰기 (디렉토리 자동 생성) |
+| `list_notion_pages` | notion_tools.py | 등록된 노션 페이지 목록 |
+| `read_notion_page` | notion_tools.py | 페이지 읽기 (8000자 제한, 에이전트용) |
+| `read_notion_page_full` | notion_tools.py | 페이지 읽기 (offset/limit 페이지네이션) |
+| `append_to_notion_page` | notion_tools.py | 페이지 끝에 마크다운 추가 |
+| `search_notion_blocks` | notion_tools.py | 키워드로 블록 검색 (ID+전후 맥락 반환) |
+| `update_notion_block` | notion_tools.py | 블록 내용 수정 |
+| `delete_notion_block` | notion_tools.py | 블록 삭제 |
+| `insert_after_notion_block` | notion_tools.py | 특정 블록 뒤에 삽입 |
+| `query_notion_database` | notion_tools.py | 데이터베이스 쿼리 |
+
+### Notion API 안전 마진
+
+- rich_text: 1860/2000자 (7% 여유)
+- blocks/request: 93/100개 (7% 여유)
+- 자동 청킹: 긴 텍스트는 1860자 단위로, 많은 블록은 93개 단위로 분할 전송
 
 ## 개발 역할 분담 (필수 원칙)
 
