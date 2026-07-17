@@ -131,6 +131,13 @@ python main.py review        # 외부인사 리뷰 (Devil's Advocate)
 python scripts/sync_notion.py              # 대화형 (페이지별 확인)
 python scripts/sync_notion.py --dry-run    # 미리보기만
 python scripts/sync_notion.py --auto       # 전체 자동 반영
+
+# DB 콘텐츠 번역 (gemma4:12b, Tier 2)
+python scripts/translate_content.py                # 전체 번역
+python scripts/translate_content.py --dry-run      # 미리보기만
+python scripts/translate_content.py --limit 5      # 5개만 테스트
+python scripts/translate_content.py --nodes-only   # 노드만
+python scripts/translate_content.py --questions-only  # 질문만
 ```
 
 ## Crew-에이전트 매핑 (9 Crew, 11 에이전트)
