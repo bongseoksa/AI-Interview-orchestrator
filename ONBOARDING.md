@@ -9,7 +9,7 @@
 
 - **CrewAI**: Python 기반 멀티에이전트 프레임워크 — role/goal/backstory로 에이전트 정의, Task/Crew로 워크플로우 구성
 - **Ollama**: 로컬 LLM 실행 도구 — 모델을 pull하여 로컬에서 추론, API 서버(port 11434) 제공
-- **YAML 에이전트 정의**: `agents/*.yaml`이 10개 에이전트의 원본 정의 (Single Source of Truth)
+- **YAML 에이전트 정의**: `agents/*.yaml`이 11개 에이전트의 원본 정의 (Single Source of Truth)
 - **Claude Code 서브에이전트**: `.claude/agents/*.md`는 Claude Code가 인식하는 페르소나 — CrewAI와 별도
 - **Crew**: CrewAI의 실행 단위 — 여러 Agent + Task를 묶어서 sequential/hierarchical로 실행
 - **MoE (Mixture of Experts)**: 전체 파라미터 중 일부만 활성화하는 모델 — 빠른 속도 + 높은 품질
@@ -79,17 +79,19 @@ deactivate
 ## 7. 프로젝트 구조
 
 ```
-agents/               # 에이전트 YAML 정의 원본 (10개, SSOT)
+agents/               # 에이전트 YAML 정의 원본 (11개, SSOT)
 src/
   config/
-    agents.yaml       # CrewAI 에이전트 정의
-    tasks.yaml        # CrewAI 태스크 정의
     llm.py            # Ollama LLM 설정 + 모델 비교표
   crews/
-    research_crew.py  # Step 1: 시장 조사 Crew
-    planning_crew.py  # Step 2-4: 기획 Crew
+    research/         # Step 1: 시장 조사 Crew
+      config/         #   에이전트/태스크 YAML (Crew별 분리)
+      crew.py         #   CrewAI Crew 정의
+    planning/         # Step 2-4: 기획 Crew
+      config/         #   에이전트/태스크 YAML
+      crew.py         #   CrewAI Crew 정의
 scripts/              # 유틸리티 (sync-agents.sh)
-.claude/agents/       # Claude Code 서브에이전트 (6개)
+.claude/agents/       # Claude Code 서브에이전트 (7개)
 main.py               # CrewAI 실행 엔트리포인트
 output/               # Crew 실행 결과물 (gitignored)
 .venv/                # Python 가상환경 (gitignored)
