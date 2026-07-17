@@ -6,8 +6,8 @@ schema_optimization:
     - AI Interview: 프론트엔드 엔지니어를 위한 CS 면접 준비 서비스
     - DB: Supabase PostgreSQL (Free Tier — 500MB, 50K rows)
     - 현재 스키마: nodes, questions, user_progress 3개 테이블
-    - 카테고리: 8개 (HTML, CSS, JavaScript, React, Next.js, 인프라/보안/네트워크, 형상관리, 성능/SEO)
-    - 시드 데이터: 138개 Q&A (Notion DB에서 관리)
+    - 카테고리: 9개 (HTML, CSS, JavaScript, React, Next.js, 인프라/보안/네트워크, 형상관리(Git/CI-CD), 성능/SEO, AI/LLM 통합)
+    - 시드 데이터: 151개 Q&A (Notion DB에서 관리)
 
     [검토 포함 사항]
     1. 현재 스키마의 정규화 수준 적정성 검토
