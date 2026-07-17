@@ -99,14 +99,18 @@ output/               # Crew 실행 결과물 (gitignored)
 
 ## 8. AI 모델 요약
 
-| 모델 | 타입 | RAM | 속도 | 용도 | 라이선스 |
-|------|------|-----|------|------|---------|
-| `gemma4:12b` | Dense | ~6.6GB | ~80-90 t/s | **기본 (추천)** | Apache 2.0 |
-| `gemma4:26b` | MoE | ~15GB | ~70-80 t/s | 고성능 분석 | Apache 2.0 |
-| `qwen3:8b` | Dense | ~5.2GB | ~120+ t/s | 빠른 반복 | Apache 2.0 |
-| `qwen3.5:35b-a3b` | MoE | ~20GB | ~70-80 t/s | 코딩 특화 | Apache 2.0 |
+### 로컬 모델 (Ollama)
+
+| 모델 | 타입 | RAM | 속도 | Tier | 용도 | 라이선스 |
+|------|------|-----|------|------|------|---------|
+| `gemma4:12b` | Dense | ~6.6GB | ~80-90 t/s | **Tier 2** | 유저 대면, 빠른 반복 | Apache 2.0 |
+| `gemma4:26b` | MoE | ~15GB | ~70-80 t/s | **Tier 1** | 고성능 분석, 콘텐츠 생성 | Apache 2.0 |
+| `qwen3:8b` | Dense | ~5.2GB | ~120+ t/s | Tier 2 | 빠른 반복 | Apache 2.0 |
+| `qwen3.5:35b-a3b` | MoE | ~20GB | ~70-80 t/s | Tier 1 | 코딩 특화 | Apache 2.0 |
 
 하드웨어: Apple M4 Pro 48GB (273 GB/s 메모리 대역폭)
+
+**2-Tier 원칙**: 자료 수집·개발 Crew는 Tier 1(26B, 품질 최우선, 응답 지연 허용), 유저 대면 콘텐츠 생성은 Tier 2(12B, 속도 우선)
 
 ## 9. 비용 제약
 

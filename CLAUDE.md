@@ -12,18 +12,32 @@
 ## AI 모델 & 에이전트 프레임워크
 
 - **프레임워크**: CrewAI v1.15.3 (MIT, self-hosted, 무료)
-- **LLM**: Ollama 로컬 모델 (Gemma 4 12B 기본, Gemma 4 26B 고성능)
+- **LLM**: Ollama 로컬 모델 (Tier 1: Gemma 4 26B 개발용 고정, Tier 2: Gemma 4 12B 유저 대면용)
 - **Python**: 3.13 (.venv 가상환경)
 - **실행**: `source .venv/bin/activate && python main.py <command>`
 - **모든 모델 라이선스**: Apache 2.0 (상업적 사용 무제한, 로열티 없음)
+
+### AI 모델 2-Tier 전략 (Ollama 로컬 모델)
+
+자료 수집·개발용은 답변이 늦어도 고성능 모델을 고정하고, 서비스 내 유저 대면 콘텐츠 생성은 경량 모델을 사용한다.
+
+| Tier | 모델 | RAM | 속도 | 용도 |
+|------|------|-----|------|------|
+| **Tier 1 (고성능)** | `gemma4:26b` MoE | ~15GB | ~70-80 t/s | 시드 데이터 생성, 학습 콘텐츠 작성, Q&A 검증, 시장 조사, PRD 작성 |
+| **Tier 1 대안** | `qwen3.5:35b-a3b` MoE | ~20GB | ~70-80 t/s | 코딩 특화 태스크 |
+| **Tier 2 (경량)** | `gemma4:12b` Dense | ~6.6GB | ~80-90 t/s | 유저 대면 콘텐츠 생성 (AI 요약·팁, 면접 피드백 등) |
+| **Tier 2 대안** | `qwen3:8b` Dense | ~5.2GB | ~120+ t/s | 빠른 반복, 경량 태스크 |
+
+- **Tier 1**: 품질 최우선, 응답 지연 허용 — ResearchCrew, PlanningCrew, ArchitectCrew 등 모든 개발용 Crew에 적용
+- **Tier 2**: 속도 우선 — 향후 서비스용 콘텐츠 생성 Crew에 적용
 
 ### 사전 준비
 
 ```bash
 # 1. Ollama 모델 다운로드 (최초 1회)
-ollama pull gemma4:12b        # 기본 모델 (~6.6GB)
-ollama pull gemma4:26b        # 고성능 모델 (~15GB, 선택)
-ollama pull qwen3:8b          # 빠른 반복용 (선택)
+ollama pull gemma4:26b        # Tier 1 — 개발용 기본 모델 (~15GB)
+ollama pull gemma4:12b        # Tier 2 — 유저 대면용 (~6.6GB)
+ollama pull qwen3:8b          # Tier 2 대안 — 빠른 반복용 (선택)
 
 # 2. Python 가상환경 활성화
 source .venv/bin/activate
@@ -37,8 +51,8 @@ python main.py planning   # Step 2-4: 기획
 
 | 모델 | 타입 | 활성 | RAM | 속도 | Tool-call | 용도 |
 |------|------|------|-----|------|-----------|------|
-| `gemma4:12b` | Dense | 12B | ~6.6GB | ~80-90 t/s | ~90% | **기본 추천** |
-| `gemma4:26b` | MoE | 4B | ~15GB | ~70-80 t/s | ~90% | 고성능 분석 |
+| `gemma4:26b` | MoE | 4B | ~15GB | ~70-80 t/s | ~90% | **Tier 1 — 개발용 기본 모델** |
+| `gemma4:12b` | Dense | 12B | ~6.6GB | ~80-90 t/s | ~90% | **Tier 2 — 유저 대면용** |
 | `qwen3:8b` | Dense | 8B | ~5.2GB | ~120+ t/s | ~85% | 빠른 반복 |
 | `qwen3.5:35b-a3b` | MoE | 3B | ~20GB | ~70-80 t/s | 85% | 코딩 특화 |
 | `qwen3:14b` | Dense | 14B | ~9GB | ~60-70 t/s | 85-90% | 범용 대안 |
@@ -51,12 +65,18 @@ python main.py planning   # Step 2-4: 기획
 **검토 기준**: 라이선스(Apache 2.0 필수), M4 Pro 48GB 하드웨어 호환성,
 에이전트 tool-call 신뢰도, 응답 속도(tok/s), RAM 사용량.
 
-**Gemma 4 12B 채택 이유**:
-1. 네이티브 function calling 내장 → tool-call 신뢰도 최고 (~90%)
-2. ~6.6GB RAM → 48GB에서 여유롭게 구동, 다른 작업 병행 가능
-3. ~80-90 tok/s → Dense 14B(~60-70)보다 빠름
-4. MMLU Pro 77.2% → 구 세대 27B(67.6%) 능가
+**Gemma 4 26B 개발용 기본 모델 채택 이유**:
+1. MoE 아키텍처 → 활성 파라미터 4B로 26B 품질을 12B급 속도로 제공
+2. ~15GB RAM → 48GB에서 여유롭게 구동
+3. 자료 수집·분석·콘텐츠 생성 등 품질이 중요한 태스크에 최적
+4. 네이티브 function calling 내장 → tool-call 신뢰도 ~90%
 5. Apache 2.0 → MAU 제한 없음 (Llama의 7억 제한 vs 없음)
+
+**Gemma 4 12B 유저 대면용 모델 선정 이유**:
+1. ~6.6GB RAM → 경량, 다른 작업 병행 가능
+2. ~80-90 tok/s → 빠른 응답 속도
+3. MMLU Pro 77.2% → 유저 대면 품질 충분
+4. tool-call 신뢰도 ~90%
 
 **참고 자료**:
 - HuggingFace Open LLM Leaderboard: huggingface.co/collections/open-llm-leaderboard
