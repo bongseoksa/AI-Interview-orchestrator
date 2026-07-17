@@ -1,0 +1,42 @@
+# Dependencies (Node.js)
+node_modules/
+.pnpm-store/
+
+# Dependencies (Python)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Build
+dist/
+build/
+
+# Testing
+coverage/
+.coverage
+.pytest_cache/
+.mypy_cache/
+
+# AI agent state
+*.pkl
+agent_cache/
