@@ -1,0 +1,73 @@
+#!/bin/sh
+
+# ===========================================
+# Pre-commit hook: Sensitive file & secret detection
+# Activate: git config core.hooksPath .githooks
+# ===========================================
+
+FORBIDDEN_PATTERNS=(
+  "\.env$"
+  "\.env\.local$"
+  "\.env\.development$"
+  "\.env\.production$"
+  "\.env\.keys$"
+  "\.pem$"
+  "\.p12$"
+  "\.key$"
+  "\.secret$"
+  "credentials\.json$"
+  "serviceAccountKey\.json$"
+  "\.gguf$"
+  "\.safetensors$"
+)
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACR)
+
+BLOCKED_FILES=""
+for file in $STAGED_FILES; do
+  for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
+    if echo "$file" | grep -qE "$pattern"; then
+      BLOCKED_FILES="$BLOCKED_FILES\n  - $file (matched: $pattern)"
+    fi
+  done
+done
+
+if [ -n "$BLOCKED_FILES" ]; then
+  echo ""
+  echo "[pre-commit] Blocked: sensitive files detected in staging"
+  echo "$BLOCKED_FILES"
+  echo ""
+  echo "If intentional, use: git commit --no-verify"
+  exit 1
+fi
+
+# Content scanning: check for hardcoded secrets in staged files
+if [ -n "$STAGED_FILES" ]; then
+  SECRET_PATTERNS=(
+    "sk-[a-zA-Z0-9]{20,}"
+    "password\s*=\s*['\"][^'\"]+['\"]"
+    "postgresql://[^@]+@[^/]+/"
+    "mysql://[^@]+@[^/]+/"
+  )
+
+  FOUND_SECRETS=""
+  for file in $STAGED_FILES; do
+    if [ -f "$file" ] && ! echo "$file" | grep -qE "^\.githooks/"; then
+      for pattern in "${SECRET_PATTERNS[@]}"; do
+        MATCH=$(git diff --cached -- "$file" | grep -E "^\+" | grep -E "$pattern" 2>/dev/null | head -1)
+        if [ -n "$MATCH" ]; then
+          FOUND_SECRETS="$FOUND_SECRETS\n  - $file: potential secret ($pattern)"
+        fi
+      done
+    fi
+  done
+
+  if [ -n "$FOUND_SECRETS" ]; then
+    echo ""
+    echo "[pre-commit] Warning: potential secrets detected in staged changes"
+    echo "$FOUND_SECRETS"
+    echo ""
+    echo "If intentional, use: git commit --no-verify"
+    exit 1
+  fi
+fi

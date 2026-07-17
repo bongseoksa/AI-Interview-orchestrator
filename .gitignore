@@ -44,3 +44,16 @@ agent_cache/
 # CrewAI
 output/
 *.db
+.crewai/
+
+# Ollama model files (accidental copy)
+*.gguf
+*.safetensors
+
+# Secrets / Certificates
+*.pem
+*.p12
+*.key
+*.secret
+credentials.json
+serviceAccountKey.json

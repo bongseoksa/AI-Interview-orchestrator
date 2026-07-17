@@ -27,6 +27,9 @@
 ```bash
 cd AI-Interview-orchestrator
 
+# Git pre-commit 훅 활성화 (최초 1회)
+git config core.hooksPath .githooks
+
 # Python 가상환경 (최초 1회, 이미 .venv 존재하면 생략)
 python3.13 -m venv .venv
 source .venv/bin/activate
@@ -37,6 +40,8 @@ ollama pull gemma4:12b        # 기본 모델 (~6.6GB)
 ollama pull gemma4:26b        # 고성능 (선택, ~15GB)
 ollama pull qwen3:8b          # 빠른 반복용 (선택, ~5.2GB)
 ```
+
+> `git config core.hooksPath .githooks`를 실행하면 커밋 시 민감 파일(.env, 인증서, 모델 파일 등) 차단 + 시크릿 패턴 스캔이 자동 수행됩니다.
 
 ## 4. 실행
 
@@ -50,6 +55,13 @@ source .venv/bin/activate
 # 3. Crew 실행
 python main.py research       # Step 1: 시장 조사
 python main.py planning       # Step 2-4: 기획
+python main.py architect      # 아키텍처 설계
+python main.py frontend       # 프론트엔드 설계
+python main.py qa             # QA 테스트 전략
+python main.py infra          # 인프라 CI/CD
+python main.py data           # 데이터 파이프라인
+python main.py docs           # 문서 감사
+python main.py review         # 외부인사 리뷰
 ```
 
 ## 5. 종료
@@ -70,6 +82,13 @@ deactivate
 | `deactivate` | 가상환경 비활성화 |
 | `python main.py research` | Step 1 시장 조사 실행 |
 | `python main.py planning` | Step 2-4 기획 실행 |
+| `python main.py architect` | 아키텍처 설계 실행 |
+| `python main.py frontend` | 프론트엔드 설계 실행 |
+| `python main.py qa` | QA 테스트 전략 실행 |
+| `python main.py infra` | 인프라 CI/CD 실행 |
+| `python main.py data` | 데이터 파이프라인 실행 |
+| `python main.py docs` | 문서 감사 실행 |
+| `python main.py review` | 외부인사 리뷰 실행 |
 | `ollama serve` | Ollama 서버 시작 |
 | `ollama list` | 설치된 모델 목록 |
 | `ollama pull <model>` | 모델 다운로드 |
@@ -83,13 +102,16 @@ agents/               # 에이전트 YAML 정의 원본 (11개, SSOT)
 src/
   config/
     llm.py            # Ollama LLM 설정 + 모델 비교표
-  crews/
-    research/         # Step 1: 시장 조사 Crew
-      config/         #   에이전트/태스크 YAML (Crew별 분리)
-      crew.py         #   CrewAI Crew 정의
-    planning/         # Step 2-4: 기획 Crew
-      config/         #   에이전트/태스크 YAML
-      crew.py         #   CrewAI Crew 정의
+  crews/              # 9개 Crew (각각 config/agents.yaml + config/tasks.yaml + crew.py)
+    research/         # Step 1: 시장 조사 — 전략 관리자
+    planning/         # Step 2-4: 기획 — PM + PjM
+    architect/        # 아키텍처 설계 — 풀스택 아키텍트 + 백엔드 시니어
+    frontend/         # 프론트엔드 설계 — FE 시니어
+    qa/               # QA 테스트 전략 — QA 엔지니어
+    infra/            # 인프라 CI/CD — 인프라 전문가
+    data/             # 데이터 파이프라인 — 데이터 엔지니어
+    documentation/    # 문서 감사 — 서기관리 에이전트
+    review/           # 외부인사 리뷰 — 외부인사
 scripts/              # 유틸리티 (sync-agents.sh)
 .claude/agents/       # Claude Code 서브에이전트 (7개)
 main.py               # CrewAI 실행 엔트리포인트
