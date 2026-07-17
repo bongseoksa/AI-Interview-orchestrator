@@ -145,7 +145,38 @@ def _blocks_to_text(blocks: list[dict], indent: str = "") -> str:
     return "\n".join(lines)
 
 
+def _chunk_text(text: str, max_len: int = 1860) -> list[str]:
+    """텍스트를 max_len 이하 청크로 분할한다 (Notion rich_text 제한 2000자, 7% 마진)."""
+    if len(text) <= max_len:
+        return [text]
+    chunks = []
+    while text:
+        if len(text) <= max_len:
+            chunks.append(text)
+            break
+        # 줄바꿈 기준으로 자르기 시도
+        cut = text.rfind("\n", 0, max_len)
+        if cut <= 0:
+            cut = max_len
+        chunks.append(text[:cut])
+        text = text[cut:].lstrip("\n")
+    return chunks
+
+
 def _parse_inline_formatting(text: str) -> list[dict]:
+    """인라인 볼드(**text**)를 Notion rich_text 배열로 변환한다.
+    2000자 초과 시 자동 분할."""
+    # 1860자(2000 - 7% 마진) 이하면 기존 로직
+    if len(text) <= 1860:
+        return _parse_inline_simple(text)
+    # 초과: 청크 분할 후 각각 파싱
+    parts: list[dict] = []
+    for chunk in _chunk_text(text, 1860):
+        parts.extend(_parse_inline_simple(chunk))
+    return parts
+
+
+def _parse_inline_simple(text: str) -> list[dict]:
     """인라인 볼드(**text**)를 Notion rich_text 배열로 변환한다."""
     parts: list[dict] = []
     pattern = re.compile(r"\*\*(.+?)\*\*")
@@ -187,13 +218,16 @@ def _markdown_to_blocks(markdown: str) -> list[dict]:
                 code_lines.append(lines[i])
                 i += 1
             i += 1
-            blocks.append({
-                "object": "block", "type": "code",
-                "code": {
-                    "rich_text": [{"type": "text", "text": {"content": "\n".join(code_lines)}}],
-                    "language": lang or "plain text",
-                },
-            })
+            code_text = "\n".join(code_lines)
+            # 2000자 초과 시 여러 코드블록으로 분할
+            for chunk in _chunk_text(code_text, 2000):
+                blocks.append({
+                    "object": "block", "type": "code",
+                    "code": {
+                        "rich_text": [{"type": "text", "text": {"content": chunk}}],
+                        "language": lang or "plain text",
+                    },
+                })
             continue
 
         # h1
@@ -258,9 +292,8 @@ def list_notion_pages() -> str:
     return "\n".join(lines)
 
 
-@tool("read_notion_page")
-def read_notion_page(page: str) -> str:
-    """Notion 페이지 내용을 읽어 마크다운 텍스트로 반환한다. page는 페이지 이름(예: 기획서) 또는 페이지 ID."""
+def _read_page_raw(page: str) -> str:
+    """Notion 페이지 전체 내용을 마크다운으로 반환한다 (글자수 제한 없음)."""
     page_id = _resolve_page_id(page)
     if not page_id:
         return f"페이지를 찾을 수 없습니다: {page}\n사용 가능한 페이지: {', '.join(PAGE_ID_MAP.keys())}"
@@ -296,18 +329,43 @@ def read_notion_page(page: str) -> str:
         cursor = resp.get("next_cursor")
 
     text = _blocks_to_text(all_blocks)
-
-    # 최대 길이 제한 (LLM 컨텍스트 보호)
-    if len(text) > 8000:
-        text = text[:8000] + f"\n\n... (총 {len(text)}자 중 8000자까지 표시)"
-
     header = f"# {title}\n\n" if title else ""
     return header + text
 
 
+# CrewAI 에이전트용 글자수 제한 (LLM 컨텍스트 보호)
+AGENT_READ_LIMIT = 8000
+
+
+@tool("read_notion_page")
+def read_notion_page(page: str) -> str:
+    """Notion 페이지 내용을 읽어 마크다운 텍스트로 반환한다. page는 페이지 이름(예: 기획서) 또는 페이지 ID. LLM 컨텍스트 보호를 위해 8000자로 제한된다."""
+    text = _read_page_raw(page)
+    if len(text) > AGENT_READ_LIMIT:
+        text = text[:AGENT_READ_LIMIT] + f"\n\n... (총 {len(text)}자 중 {AGENT_READ_LIMIT}자까지 표시. 나머지는 read_notion_page_full 도구로 offset 지정하여 읽기)"
+    return text
+
+
+@tool("read_notion_page_full")
+def read_notion_page_full(page: str, offset: int = 0, limit: int = 8000) -> str:
+    """Notion 페이지를 offset/limit으로 구간 읽기한다. 긴 페이지를 나눠 읽을 때 사용. offset은 시작 글자 위치, limit은 읽을 글자수."""
+    text = _read_page_raw(page)
+    total = len(text)
+    chunk = text[offset:offset + limit]
+    remaining = total - offset - len(chunk)
+    footer = ""
+    if remaining > 0:
+        footer = f"\n\n... ({remaining}자 남음. offset={offset + len(chunk)}으로 다음 구간 읽기)"
+    return f"[{offset}~{offset + len(chunk)} / 총 {total}자]\n\n{chunk}{footer}"
+
+
+# Notion API 1회 요청당 최대 블록 수 (제한 100, 7% 마진 적용)
+MAX_BLOCKS_PER_REQUEST = 93
+
+
 @tool("append_to_notion_page")
 def append_to_notion_page(page: str, markdown_content: str) -> str:
-    """Notion 페이지 하단에 마크다운 내용을 추가한다. page는 페이지 이름 또는 ID."""
+    """Notion 페이지 하단에 마크다운 내용을 추가한다. page는 페이지 이름 또는 ID. 100블록 초과 시 자동 분할 전송."""
     page_id = _resolve_page_id(page)
     if not page_id:
         return f"페이지를 찾을 수 없습니다: {page}\n사용 가능한 페이지: {', '.join(PAGE_ID_MAP.keys())}"
@@ -316,12 +374,18 @@ def append_to_notion_page(page: str, markdown_content: str) -> str:
     if not blocks:
         return "변환할 블록이 없습니다. 마크다운 내용을 확인하세요."
 
-    resp = _api_request("PATCH", f"/blocks/{page_id}/children", {"children": blocks})
-    if "error" in resp:
-        return resp["error"]
+    # 100블록씩 청크로 분할 전송
+    total_added = 0
+    for i in range(0, len(blocks), MAX_BLOCKS_PER_REQUEST):
+        chunk = blocks[i:i + MAX_BLOCKS_PER_REQUEST]
+        resp = _api_request("PATCH", f"/blocks/{page_id}/children", {"children": chunk})
+        if "error" in resp:
+            return f"블록 {i}~{i+len(chunk)} 전송 중 오류: {resp['error']} (이전 {total_added}개 블록은 이미 반영됨)"
+        total_added += len(resp.get("results", []))
 
-    count = len(resp.get("results", []))
-    return f"Notion 페이지에 {count}개 블록 추가 완료 (page_id: {page_id})"
+    chunks_sent = (len(blocks) + MAX_BLOCKS_PER_REQUEST - 1) // MAX_BLOCKS_PER_REQUEST
+    chunk_info = f" ({chunks_sent}회 분할 전송)" if chunks_sent > 1 else ""
+    return f"Notion 페이지에 {total_added}개 블록 추가 완료{chunk_info} (page_id: {page_id})"
 
 
 @tool("query_notion_database")

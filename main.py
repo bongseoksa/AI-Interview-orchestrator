@@ -16,7 +16,7 @@ from src.crews.review.crew import ReviewCrew
 from src.crews.codegen.crew import CodegenCrew, REPO_PATHS
 from src.tools.notion_tools import (
     list_notion_pages,
-    read_notion_page,
+    _read_page_raw,
     append_to_notion_page,
     PAGE_ID_MAP,
 )
@@ -155,7 +155,7 @@ def run_notion():
             print(f"사용 가능: {', '.join(PAGE_ID_MAP.keys())}")
             sys.exit(1)
         page = sys.argv[3]
-        print(read_notion_page.run(page=page))
+        print(_read_page_raw(page))
         return
 
     if action == "write":

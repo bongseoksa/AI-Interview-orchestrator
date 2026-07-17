@@ -10,6 +10,7 @@ from src.tools.file_tools import list_directory_recursive, read_file, write_file
 from src.tools.notion_tools import (
     list_notion_pages,
     read_notion_page,
+    read_notion_page_full,
     append_to_notion_page,
     query_notion_database,
 )
@@ -36,6 +37,7 @@ class DocumentationCrew:
                 write_file,
                 list_notion_pages,
                 read_notion_page,
+                read_notion_page_full,
                 append_to_notion_page,
                 query_notion_database,
             ],
