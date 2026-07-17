@@ -1,0 +1,63 @@
+analyze_codebase:
+  description: >
+    대상 레포지토리의 기존 코드베이스를 분석한다.
+
+    [작업 지시]
+    {task_description}
+
+    [대상 레포 절대 경로]
+    {target_repo}
+
+    [필수 수행 단계 — 반드시 도구를 사용하라]
+    1. list_directory_recursive 도구로 대상 레포({target_repo})의 디렉토리 구조를 파악한다
+    2. read_file 도구로 주요 파일들을 읽어 코드 패턴을 파악한다
+    3. 관련 설계 문서가 있다면 read_file로 output/ 디렉토리의 파일을 읽는다
+
+    [출력 형식]
+    아래 형식으로 분석 결과를 작성한다:
+
+    ## 디렉토리 구조
+    (탐색 결과 요약)
+
+    ## 코드 패턴
+    - 네이밍 컨벤션:
+    - import 패턴:
+    - 파일 구조:
+
+    ## 작업 계획
+    - 생성할 파일 목록 (절대 경로):
+    - 각 파일의 역할:
+  expected_output: >
+    코드베이스 분석 보고서. 디렉토리 구조, 코드 패턴, 생성할 파일 계획 포함.
+  agent: codegen_developer
+
+generate_code:
+  description: >
+    코드베이스 분석 결과를 기반으로 실제 코드 파일을 생성한다.
+
+    [작업 지시]
+    {task_description}
+
+    [대상 레포 절대 경로]
+    {target_repo}
+
+    [필수 수행 단계 — 반드시 write_file 도구를 사용하여 파일을 생성하라]
+    1. 분석에서 파악한 패턴에 맞춰 코드를 작성한다
+    2. write_file 도구를 호출하여 대상 레포에 파일을 생성한다
+       - file_path: 반드시 절대 경로 사용 (예: {target_repo}/main.py)
+       - content: 파일 전체 내용
+    3. 파일 생성 후 결과를 정리한다
+
+    [코드 작성 규칙]
+    - 기존 프로젝트의 코드 스타일을 따른다
+    - 불필요한 주석을 달지 않는다
+    - 과도한 에러 핸들링이나 추상화를 하지 않는다
+    - 한국어 주석 금지 — 코드 내 주석은 영어로
+
+    [중요] 절대로 "설계 문서를 달라"고 요청하지 말 것. 주어진 작업 지시에 따라 즉시 코드를 생성하라.
+  expected_output: >
+    생성된 파일 목록과 각 파일의 역할 요약.
+  agent: codegen_developer
+  context:
+    - analyze_codebase
+  output_file: output/codegen-result.md

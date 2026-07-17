@@ -13,6 +13,7 @@ from src.crews.infra.crew import InfraCrew
 from src.crews.data.crew import DataCrew
 from src.crews.documentation.crew import DocumentationCrew
 from src.crews.review.crew import ReviewCrew
+from src.crews.codegen.crew import CodegenCrew, REPO_PATHS
 
 
 def run_research():
@@ -97,6 +98,36 @@ def run_review():
     return result
 
 
+def run_codegen():
+    """코드 생성 — 설계 문서 기반으로 대상 레포에 코드 파일 생성"""
+    if len(sys.argv) < 4:
+        print("사용법: python main.py codegen <repo> <task_description>")
+        print(f"  repo: {', '.join(REPO_PATHS.keys())}")
+        print('  예시: python main.py codegen web "학습 페이지 컴포넌트 생성"')
+        sys.exit(1)
+
+    repo_key = sys.argv[2]
+    if repo_key not in REPO_PATHS:
+        print(f"알 수 없는 레포: {repo_key}")
+        print(f"사용 가능: {', '.join(REPO_PATHS.keys())}")
+        sys.exit(1)
+
+    target_repo = str(REPO_PATHS[repo_key])
+    task_desc = " ".join(sys.argv[3:])
+
+    print(f"  대상 레포: {target_repo}")
+    print(f"  작업: {task_desc}")
+
+    inputs = {
+        "task_description": task_desc,
+        "target_repo": target_repo,
+    }
+    result = CodegenCrew().crew().kickoff(inputs=inputs)
+    print("\n=== 코드 생성 완료 ===")
+    print(result)
+    return result
+
+
 COMMANDS = {
     "research": ("Step 1: 시장 조사", run_research),
     "planning": ("Step 2-4: 기획", run_planning),
@@ -107,6 +138,7 @@ COMMANDS = {
     "data": ("데이터 파이프라인", run_data),
     "docs": ("문서 감사 + 노션 초안", run_documentation),
     "review": ("외부인사 리뷰", run_review),
+    "codegen": ("코드 생성 (codegen <repo> <task>)", run_codegen),
 }
 
 
