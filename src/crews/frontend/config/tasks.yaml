@@ -1,0 +1,45 @@
+component_design:
+  description: >
+    "{topic}" 기능의 프론트엔드 컴포넌트 설계 문서를 작성한다.
+
+    [서비스 컨텍스트]
+    - AI Interview: 프론트엔드 엔지니어를 위한 CS 면접 준비 서비스
+    - 기술 스택: Next.js 16 (App Router, SSG), TypeScript 5.9.x, Tailwind CSS 3.4.x + shadcn/ui
+    - 상태 관리: Zustand 5.x (클라이언트) + TanStack Query 5.x (서버)
+    - 폼: React Hook Form 7.x + Zod 4.x
+    - 패키지: pnpm 10.17.1, path alias @/*
+
+    [설계 포함 사항]
+    1. 컴포넌트 트리 구조 (페이지 → 레이아웃 → 섹션 → UI 컴포넌트)
+    2. 각 컴포넌트의 Props 인터페이스 (TypeScript)
+    3. 서버 컴포넌트 vs 클라이언트 컴포넌트 분리 기준
+    4. 상태 관리 전략 (어떤 상태를 어디에서 관리할 것인가)
+    5. shadcn/ui 컴포넌트 활용 계획
+    6. 접근성(a11y) 고려 사항 — 시맨틱 마크업, aria 속성, 키보드 내비게이션
+    7. 반응형 브레이크포인트 전략 (360px ~ 1920px)
+  expected_output: >
+    프론트엔드 컴포넌트 설계 문서 (마크다운). 컴포넌트 트리, Props 인터페이스,
+    서버/클라이언트 분리 기준, 상태 관리 전략, shadcn/ui 활용 계획,
+    접근성 체크리스트, 반응형 전략 포함.
+  agent: frontend_senior
+  output_file: output/frontend-component-design.md
+
+page_structure:
+  description: >
+    컴포넌트 설계를 기반으로 Next.js App Router 페이지 구조를 정의한다.
+
+    [설계 포함 사항]
+    1. app/ 디렉토리 라우트 구조 (layout.tsx, page.tsx, loading.tsx, error.tsx)
+    2. generateStaticParams() 활용 계획 (SSG 페이지)
+    3. 메타데이터 전략 (generateMetadata, SEO)
+    4. 데이터 페칭 패턴 (서버 컴포넌트에서 Supabase 직접 호출 vs Route Handler)
+    5. 로딩/에러 상태 처리 (Suspense, Error Boundary)
+    6. 성능 최적화 (코드 스플리팅, 이미지 최적화, 폰트 최적화)
+    7. Core Web Vitals 목표 — LCP < 2.5s, INP < 200ms, CLS < 0.1
+  expected_output: >
+    Next.js 페이지 구조 문서 (마크다운). 라우트 트리, SSG 전략,
+    메타데이터 구조, 데이터 페칭 패턴, 성능 최적화 계획 포함.
+  agent: frontend_senior
+  context:
+    - component_design
+  output_file: output/frontend-page-structure.md

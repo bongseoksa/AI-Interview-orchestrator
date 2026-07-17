@@ -1,0 +1,45 @@
+test_strategy:
+  description: >
+    "{topic}" 기능의 테스트 전략을 수립한다.
+
+    [서비스 컨텍스트]
+    - AI Interview: 프론트엔드 엔지니어를 위한 CS 면접 준비 서비스
+    - 기술 스택: Next.js 16, TypeScript, Supabase (PostgreSQL + Auth)
+    - Phase 0 MVP: 메타인지 기반 개념 학습
+
+    [테스트 전략 포함 사항]
+    1. 테스트 피라미드 정의 (단위/통합/E2E 비율)
+    2. 테스트 도구 선정 (Vitest, Playwright, Testing Library 등)
+    3. 테스트 커버리지 목표 설정
+    4. CI/CD 파이프라인 내 테스트 단계 정의
+    5. 비기능 요구사항 테스트 (성능, 접근성, SEO)
+    6. AI 응답 일관성 검증 전략 (프롬프트 QA)
+    7. 테스트 데이터 관리 전략
+  expected_output: >
+    테스트 전략 문서 (마크다운). 테스트 피라미드, 도구 선정 근거,
+    커버리지 목표, CI/CD 통합 계획, 프롬프트 QA 전략 포함.
+  agent: qa_engineer
+  output_file: output/qa-test-strategy.md
+
+test_cases:
+  description: >
+    테스트 전략을 기반으로 Phase 0 MVP 핵심 기능의 테스트 케이스를 작성한다.
+
+    [Phase 0 핵심 기능 — PRD 기반]
+    1. 커리큘럼 대시보드 (US-1.1): 8개 카테고리 + 하위 노드 시각화, 상태별 구분
+    2. 메타인지 진단 (US-2.1): 5~10개 CS 질문 기반 취약 영역 진단 + 결과 리포트
+    3. 지식 상태 트래킹 (US-1.2): 학습 완료 시 실시간 프로그레스 반영
+    4. 개념 학습 모듈 (US-3.1): [개념 정의/핵심 원리/면접 빈출 키워드] 3단 구조
+    5. AI 요약 및 팁 (US-3.2): LLM 기반 한 문장 요약 + 면접체 피드백
+
+    [테스트 케이스 형식]
+    - TC-ID, 제목, 사전 조건, 테스트 단계, 기대 결과, 우선순위(Critical/High/Medium/Low)
+    - Given-When-Then 형식 사용
+    - 각 기능별 Happy Path + Edge Case + Error Path 포함
+  expected_output: >
+    테스트 케이스 문서 (마크다운). 기능별 테스트 케이스 표,
+    Happy Path / Edge Case / Error Path 구분, 우선순위 표시 포함.
+  agent: qa_engineer
+  context:
+    - test_strategy
+  output_file: output/qa-test-cases.md

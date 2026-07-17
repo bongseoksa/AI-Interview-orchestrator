@@ -1,4 +1,4 @@
-"""Step 2-4: 기획 Crew (PRD → 기능 스펙 → 유저 스토리)"""
+"""서기관리 Crew (문서 감사 + CHANGELOG 동기화)"""
 
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
@@ -9,8 +9,8 @@ from src.config.llm import get_llm, HIGH_PERF_MODEL
 
 
 @CrewBase
-class PlanningCrew:
-    """PRD, 기능 스펙, 유저 스토리 작성 Crew (Step 2-4)"""
+class DocumentationCrew:
+    """문서 정합성 검증 및 변경 이력 관리 Crew"""
 
     agents: List[BaseAgent]
     tasks: List[Task]
@@ -19,37 +19,23 @@ class PlanningCrew:
     tasks_config = "config/tasks.yaml"
 
     @agent
-    def product_manager(self) -> Agent:
+    def doc_secretary(self) -> Agent:
         return Agent(
-            config=self.agents_config["product_manager"],
-            llm=get_llm(HIGH_PERF_MODEL),
-            verbose=True,
-        )
-
-    @agent
-    def project_manager(self) -> Agent:
-        return Agent(
-            config=self.agents_config["project_manager"],
+            config=self.agents_config["doc_secretary"],
             llm=get_llm(HIGH_PERF_MODEL),
             verbose=True,
         )
 
     @task
-    def prd_draft(self) -> Task:
+    def doc_audit(self) -> Task:
         return Task(
-            config=self.tasks_config["prd_draft"],
+            config=self.tasks_config["doc_audit"],
         )
 
     @task
-    def feature_spec(self) -> Task:
+    def changelog_update(self) -> Task:
         return Task(
-            config=self.tasks_config["feature_spec"],
-        )
-
-    @task
-    def user_stories(self) -> Task:
-        return Task(
-            config=self.tasks_config["user_stories"],
+            config=self.tasks_config["changelog_update"],
         )
 
     @crew

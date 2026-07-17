@@ -5,7 +5,7 @@ from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
 from typing import List
 
-from src.config.llm import get_llm
+from src.config.llm import get_llm, HIGH_PERF_MODEL
 
 
 @CrewBase
@@ -22,7 +22,7 @@ class ResearchCrew:
     def strategy_manager(self) -> Agent:
         return Agent(
             config=self.agents_config["strategy_manager"],
-            llm=get_llm(),
+            llm=get_llm(HIGH_PERF_MODEL),
             verbose=True,
         )
 

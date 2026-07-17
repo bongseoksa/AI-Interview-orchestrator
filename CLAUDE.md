@@ -39,12 +39,9 @@ ollama pull gemma4:26b        # Tier 1 — 개발용 기본 모델 (~15GB)
 ollama pull gemma4:12b        # Tier 2 — 유저 대면용 (~6.6GB)
 ollama pull qwen3:8b          # Tier 2 대안 — 빠른 반복용 (선택)
 
-# 2. Python 가상환경 활성화
+# 2. Python 가상환경 활성화 + Crew 실행
 source .venv/bin/activate
-
-# 3. Crew 실행
-python main.py research   # Step 1: 시장 조사
-python main.py planning   # Step 2-4: 기획
+python main.py <command>      # 사용 가능한 명령어는 '실행 명령어' 섹션 참조
 ```
 
 ### 모델 선택 가이드 (M4 Pro 48GB, 273 GB/s 기준)
@@ -95,19 +92,54 @@ python main.py planning   # Step 2-4: 기획
 agents/               # 에이전트 YAML 정의 원본 (11개)
 src/
   config/
-    llm.py            # Ollama LLM 설정
+    llm.py            # Ollama LLM 설정 (2-Tier: 26B 고성능 / 12B 경량)
   crews/
-    research/         # Step 1: 시장 조사 Crew
-      config/         #   에이전트/태스크 YAML (Crew별 분리)
-      crew.py         #   CrewAI Crew 정의
-    planning/         # Step 2-4: 기획 Crew
-      config/         #   에이전트/태스크 YAML
-      crew.py         #   CrewAI Crew 정의
+    research/         # Step 1: 시장 조사 — 전략 관리자
+    planning/         # Step 2-4: 기획 — PM + PjM
+    architect/        # 아키텍처 설계 — 풀스택 아키텍트 + 백엔드 시니어
+    frontend/         # 프론트엔드 설계 — FE 시니어
+    qa/               # QA 테스트 전략 — QA 엔지니어
+    infra/            # 인프라 CI/CD — 인프라 전문가
+    data/             # 데이터 파이프라인 — 데이터 엔지니어
+    documentation/    # 문서 감사 — 서기관리 에이전트
+    review/           # 외부인사 리뷰 — 외부인사 (Devil's Advocate)
+    (각 Crew: config/agents.yaml + config/tasks.yaml + crew.py)
 scripts/              # 유틸리티 (sync, 변환 등)
 .claude/agents/       # 이 레포에서 사용하는 Claude Code 서브에이전트
 main.py               # CrewAI 실행 엔트리포인트
 output/               # Crew 실행 결과물 (gitignored)
 ```
+
+## 실행 명령어
+
+```bash
+source .venv/bin/activate
+python main.py research      # Step 1: 시장 조사
+python main.py planning      # Step 2-4: 기획 (PRD/스펙/유저스토리)
+python main.py architect     # 아키텍처 설계 (스키마/데이터 흐름)
+python main.py frontend      # 프론트엔드 설계 (컴포넌트/페이지 구조)
+python main.py qa            # QA (테스트 전략/테스트 케이스)
+python main.py infra         # 인프라 (CI/CD/배포 전략)
+python main.py data          # 데이터 (스키마 최적화/파이프라인)
+python main.py docs          # 문서 감사 (정합성/CHANGELOG)
+python main.py review        # 외부인사 리뷰 (Devil's Advocate)
+```
+
+## Crew-에이전트 매핑 (9 Crew, 11 에이전트)
+
+| Crew | 에이전트 | 산출물 |
+|------|----------|--------|
+| ResearchCrew | 전략 관리자 | 시장 조사 보고서 |
+| PlanningCrew | PM + PjM | PRD, 기능 스펙, 유저 스토리 |
+| ArchitectCrew | 풀스택 아키텍트 + 백엔드 시니어 | SQL 스키마, 데이터 흐름 |
+| FrontendCrew | FE 시니어 | 컴포넌트 설계, 페이지 구조 |
+| QACrew | QA 엔지니어 | 테스트 전략, 테스트 케이스 |
+| InfraCrew | 인프라 전문가 | CI/CD, 배포 전략 |
+| DataCrew | 데이터 엔지니어 | 스키마 최적화, 파이프라인 |
+| DocumentationCrew | 서기관리 | 문서 감사, CHANGELOG |
+| ReviewCrew | 외부인사 | Devil's Advocate, 경쟁력 분석 |
+
+> 모든 Crew는 Tier 1 (`gemma4:26b`) 사용 — 품질 최우선, 응답 지연 허용
 
 ## 관련 레포
 

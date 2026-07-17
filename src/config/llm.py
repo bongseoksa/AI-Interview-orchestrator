@@ -18,6 +18,9 @@
 참고: https://huggingface.co/blog/daya-shankar/open-source-llms
 """
 
+import urllib.request
+import json
+
 from crewai import LLM
 
 # 기본 모델: Gemma 4 12B — tool-call 신뢰도 최고, 빠르고 가벼움
@@ -32,10 +35,42 @@ FAST_MODEL = "ollama/qwen3:8b"
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 
+# Ollama에 설치된 모델 캐시 (프로세스 내 1회 조회)
+_available_models: set[str] | None = None
+
+
+def _get_available_models() -> set[str]:
+    """Ollama 서버에서 설치된 모델 목록을 조회한다."""
+    global _available_models
+    if _available_models is not None:
+        return _available_models
+    try:
+        req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/tags")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        _available_models = {m["name"] for m in data.get("models", [])}
+    except Exception:
+        _available_models = set()
+    return _available_models
+
+
+def _is_model_available(model: str) -> bool:
+    """Ollama에 해당 모델이 설치되어 있는지 확인한다."""
+    # CrewAI 형식 "ollama/gemma4:12b" → Ollama API 형식 "gemma4:12b"
+    ollama_name = model.removeprefix("ollama/")
+    return ollama_name in _get_available_models()
+
 
 def get_llm(model: str | None = None) -> LLM:
-    """Ollama LLM 인스턴스 반환"""
+    """Ollama LLM 인스턴스 반환. 요청 모델이 미설치면 DEFAULT_MODEL로 fallback."""
+    requested = model or DEFAULT_MODEL
+    if not _is_model_available(requested) and requested != DEFAULT_MODEL:
+        fallback = DEFAULT_MODEL
+        ollama_name = requested.removeprefix("ollama/")
+        default_name = fallback.removeprefix("ollama/")
+        print(f"  [LLM fallback] {ollama_name} 미설치 → {default_name} 사용")
+        requested = fallback
     return LLM(
-        model=model or DEFAULT_MODEL,
+        model=requested,
         base_url=OLLAMA_BASE_URL,
     )

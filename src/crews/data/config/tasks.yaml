@@ -1,0 +1,51 @@
+schema_optimization:
+  description: >
+    "{topic}" 기능의 데이터 스키마를 검토하고 최적화 방안을 제시한다.
+
+    [서비스 컨텍스트]
+    - AI Interview: 프론트엔드 엔지니어를 위한 CS 면접 준비 서비스
+    - DB: Supabase PostgreSQL (Free Tier — 500MB, 50K rows)
+    - 현재 스키마: nodes, questions, user_progress 3개 테이블
+    - 카테고리: 8개 (HTML, CSS, JavaScript, React, Next.js, 인프라/보안/네트워크, 형상관리, 성능/SEO)
+    - 시드 데이터: 138개 Q&A (Notion DB에서 관리)
+
+    [검토 포함 사항]
+    1. 현재 스키마의 정규화 수준 적정성 검토
+    2. 인덱스 전략 — 읽기/쓰기 패턴별 최적 인덱스
+    3. 쿼리 성능 분석 — SSG 빌드 시 / 런타임 시 주요 쿼리
+    4. 데이터 증가 시나리오별 Free Tier 한도 분석
+    5. RLS 정책의 성능 영향 분석
+    6. 마이그레이션 계획 (Phase 0 → Phase 1 전환 시 스키마 변경)
+    7. 롤백 전략
+  expected_output: >
+    스키마 최적화 보고서 (마크다운). 현재 스키마 분석, 인덱스 전략,
+    쿼리 성능 분석, 증가 시나리오, 마이그레이션/롤백 계획 포함.
+  agent: data_engineer
+  output_file: output/data-schema-optimization.md
+
+data_pipeline:
+  description: >
+    스키마 최적화 결과를 기반으로 데이터 파이프라인 설계서를 작성한다.
+
+    [파이프라인 설계 포함 사항]
+    1. Notion → Supabase 시드 스크립트 상세 설계
+       - Notion API 호출 패턴 (페이지네이션, rate limit)
+       - 카테고리/난이도 한글 → ENUM 매핑 로직
+       - 핵심키워드 파싱 (쉼표 → TEXT[] 배열)
+       - upsert 전략 (slug 기준 멱등성)
+    2. SSG 빌드 타임 데이터 페칭 파이프라인
+       - generateStaticParams() 쿼리 최적화
+       - 캐싱 전략 (ISR vs 순수 SSG)
+    3. 런타임 데이터 파이프라인
+       - user_progress CRUD 패턴
+       - 실시간 동기화 전략 (Supabase Realtime 활용 여부)
+    4. 사용자 학습 패턴 분석 파이프라인 (Phase 1 대비)
+       - 취약 영역 집계 쿼리
+       - 학습 완수율 대시보드 쿼리
+  expected_output: >
+    데이터 파이프라인 설계서 (마크다운). 시드 스크립트 설계, SSG 데이터 페칭,
+    런타임 CRUD 패턴, 학습 패턴 분석 쿼리 포함.
+  agent: data_engineer
+  context:
+    - schema_optimization
+  output_file: output/data-pipeline-design.md
