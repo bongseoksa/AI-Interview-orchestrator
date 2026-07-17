@@ -14,6 +14,12 @@ from src.crews.data.crew import DataCrew
 from src.crews.documentation.crew import DocumentationCrew
 from src.crews.review.crew import ReviewCrew
 from src.crews.codegen.crew import CodegenCrew, REPO_PATHS
+from src.tools.notion_tools import (
+    list_notion_pages,
+    read_notion_page,
+    append_to_notion_page,
+    PAGE_ID_MAP,
+)
 
 
 def run_research():
@@ -128,6 +134,43 @@ def run_codegen():
     return result
 
 
+def run_notion():
+    """노션 페이지 직접 조작 (읽기/쓰기)"""
+    if len(sys.argv) < 3:
+        print("사용법:")
+        print("  python main.py notion list                       # 페이지 목록")
+        print('  python main.py notion read <페이지이름|ID>       # 페이지 읽기')
+        print('  python main.py notion write <페이지이름|ID> <내용> # 페이지에 추가')
+        sys.exit(1)
+
+    action = sys.argv[2]
+
+    if action == "list":
+        print(list_notion_pages.run())
+        return
+
+    if action == "read":
+        if len(sys.argv) < 4:
+            print("페이지 이름 또는 ID를 지정하세요.")
+            print(f"사용 가능: {', '.join(PAGE_ID_MAP.keys())}")
+            sys.exit(1)
+        page = sys.argv[3]
+        print(read_notion_page.run(page=page))
+        return
+
+    if action == "write":
+        if len(sys.argv) < 5:
+            print('사용법: python main.py notion write <페이지> "마크다운 내용"')
+            sys.exit(1)
+        page = sys.argv[3]
+        content = " ".join(sys.argv[4:])
+        print(append_to_notion_page.run(page=page, markdown_content=content))
+        return
+
+    print(f"알 수 없는 액션: {action}")
+    print("사용 가능: list, read, write")
+
+
 COMMANDS = {
     "research": ("Step 1: 시장 조사", run_research),
     "planning": ("Step 2-4: 기획", run_planning),
@@ -139,6 +182,7 @@ COMMANDS = {
     "docs": ("문서 감사 + 노션 초안", run_documentation),
     "review": ("외부인사 리뷰", run_review),
     "codegen": ("코드 생성 (codegen <repo> <task>)", run_codegen),
+    "notion": ("노션 조작 (notion list|read|write)", run_notion),
 }
 
 
