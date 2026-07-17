@@ -1,0 +1,43 @@
+prd_draft:
+  description: >
+    시장 조사와 경쟁사 분석 결과를 기반으로 PRD(Product Requirements Document)를 작성한다.
+    1. 제품 비전 및 목표
+    2. 타깃 사용자 페르소나 정의
+    3. 핵심 기능 목록 (MVP 범위 명확히 구분)
+    4. 사용자 여정 (User Journey)
+    5. 성공 지표 (KPI)
+    6. 제약사항 및 가정
+  expected_output: >
+    PRD 문서 (마크다운). 제품 비전, 페르소나, MVP 기능 목록,
+    사용자 여정, 성공 지표, 제약사항 포함.
+  agent: product_manager
+  output_file: output/step2-prd.md
+
+feature_spec:
+  description: >
+    PRD를 기반으로 MVP 기능별 상세 스펙을 정의한다.
+    각 기능에 대해:
+    1. 기능 설명 및 범위
+    2. Acceptance Criteria (Given-When-Then)
+    3. 엣지 케이스
+    4. 의존성 및 블로커
+    5. 우선순위 (Must/Should/Could)
+  expected_output: >
+    기능 스펙 문서 (마크다운). 기능별 상세 스펙, AC, 엣지 케이스,
+    의존성, 우선순위 포함.
+  agent: project_manager
+  context:
+    - prd_draft
+  output_file: output/step3-feature-spec.md
+
+user_stories:
+  description: >
+    기능 스펙을 기반으로 유저 스토리를 작성한다.
+    형식: As a [사용자], I want to [행동], so that [가치].
+    각 유저 스토리에 Acceptance Criteria(Given/When/Then)를 포함한다.
+  expected_output: >
+    유저 스토리 문서 (마크다운). 에픽별 분류, 각 스토리에 AC 포함.
+  agent: project_manager
+  context:
+    - feature_spec
+  output_file: output/step4-user-stories.md

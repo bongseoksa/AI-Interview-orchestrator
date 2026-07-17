@@ -4,7 +4,7 @@
 
 ## 레포 목적
 
-- 10개 에이전트의 페르소나 정의 원본 (YAML) 관리
+- 11개 에이전트의 페르소나 정의 원본 (YAML) 관리
 - 각 레포(web/server)의 `.claude/agents/` 서브에이전트 생성 스크립트
 - Step별 워크플로우 정의
 - CrewAI + Ollama 기반 자율 에이전트 실행 환경
@@ -72,15 +72,17 @@ python main.py planning   # Step 2-4: 기획
 ## 디렉토리 구조
 
 ```
-agents/               # 에이전트 YAML 정의 원본 (10개)
+agents/               # 에이전트 YAML 정의 원본 (11개)
 src/
   config/
-    agents.yaml       # CrewAI 에이전트 정의
-    tasks.yaml        # CrewAI 태스크 정의
     llm.py            # Ollama LLM 설정
   crews/
-    research_crew.py  # Step 1: 시장 조사 Crew
-    planning_crew.py  # Step 2-4: 기획 Crew
+    research/         # Step 1: 시장 조사 Crew
+      config/         #   에이전트/태스크 YAML (Crew별 분리)
+      crew.py         #   CrewAI Crew 정의
+    planning/         # Step 2-4: 기획 Crew
+      config/         #   에이전트/태스크 YAML
+      crew.py         #   CrewAI Crew 정의
 scripts/              # 유틸리티 (sync, 변환 등)
 .claude/agents/       # 이 레포에서 사용하는 Claude Code 서브에이전트
 main.py               # CrewAI 실행 엔트리포인트

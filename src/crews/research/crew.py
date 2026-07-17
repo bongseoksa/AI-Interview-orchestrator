@@ -15,8 +15,8 @@ class ResearchCrew:
     agents: List[BaseAgent]
     tasks: List[Task]
 
-    agents_config = "src/config/agents.yaml"
-    tasks_config = "src/config/tasks.yaml"
+    agents_config = "config/agents.yaml"
+    tasks_config = "config/tasks.yaml"
 
     @agent
     def strategy_manager(self) -> Agent:

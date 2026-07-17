@@ -2,8 +2,8 @@
 
 import sys
 
-from src.crews.research_crew import ResearchCrew
-from src.crews.planning_crew import PlanningCrew
+from src.crews.research.crew import ResearchCrew
+from src.crews.planning.crew import PlanningCrew
 
 
 def run_research():
