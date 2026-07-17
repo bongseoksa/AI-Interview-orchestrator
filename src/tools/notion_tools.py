@@ -388,6 +388,179 @@ def append_to_notion_page(page: str, markdown_content: str) -> str:
     return f"Notion 페이지에 {total_added}개 블록 추가 완료{chunk_info} (page_id: {page_id})"
 
 
+# ── 중간 편집 도구 ──
+
+
+def _get_all_blocks(page_id: str) -> list[dict]:
+    """페이지의 모든 블록을 페이지네이션하여 가져온다."""
+    all_blocks: list[dict] = []
+    cursor = None
+    while True:
+        path = f"/blocks/{page_id}/children?page_size=100"
+        if cursor:
+            path += f"&start_cursor={cursor}"
+        resp = _api_request("GET", path)
+        if "error" in resp:
+            return []
+        all_blocks.extend(resp.get("results", []))
+        if not resp.get("has_more"):
+            break
+        cursor = resp.get("next_cursor")
+    return all_blocks
+
+
+def _block_text(block: dict) -> str:
+    """블록에서 plain_text를 추출한다."""
+    btype = block.get("type", "")
+    data = block.get(btype, {})
+    rich_text = data.get("rich_text", [])
+    return "".join(rt.get("plain_text", "") for rt in rich_text)
+
+
+def _block_summary(block: dict) -> str:
+    """블록을 한 줄 요약으로 반환한다."""
+    btype = block.get("type", "")
+    text = _block_text(block)
+    bid = block.get("id", "")
+    prefix = {"heading_1": "# ", "heading_2": "## ", "heading_3": "### ",
+              "bulleted_list_item": "- ", "numbered_list_item": "1. ",
+              "code": "```", "paragraph": ""}.get(btype, f"[{btype}] ")
+    preview = text[:120] + ("..." if len(text) > 120 else "")
+    return f"[{bid}] {prefix}{preview}"
+
+
+@tool("search_notion_blocks")
+def search_notion_blocks(page: str, keyword: str) -> str:
+    """Notion 페이지에서 keyword가 포함된 블록을 검색한다. 블록 ID, 타입, 내용, 전후 맥락을 반환한다. page는 페이지 이름 또는 ID."""
+    page_id = _resolve_page_id(page)
+    if not page_id:
+        return f"페이지를 찾을 수 없습니다: {page}"
+
+    blocks = _get_all_blocks(page_id)
+    if not blocks:
+        return "블록을 가져올 수 없습니다."
+
+    matches: list[str] = []
+    keyword_lower = keyword.lower()
+
+    for idx, block in enumerate(blocks):
+        text = _block_text(block)
+        if keyword_lower not in text.lower():
+            continue
+
+        lines = [f"\n=== 매치 {len(matches) + 1} ==="]
+
+        # 이전 블록 (맥락)
+        if idx > 0:
+            lines.append(f"  이전: {_block_summary(blocks[idx - 1])}")
+
+        # 매치 블록
+        bid = block.get("id", "")
+        btype = block.get("type", "")
+        lines.append(f"  >>> [{bid}] type={btype}")
+        lines.append(f"      내용: {text[:500]}")
+
+        # 다음 블록 (맥락)
+        if idx < len(blocks) - 1:
+            lines.append(f"  다음: {_block_summary(blocks[idx + 1])}")
+
+        matches.append("\n".join(lines))
+
+    if not matches:
+        return f"'{keyword}'를 포함하는 블록이 없습니다."
+
+    header = f"'{keyword}' 검색 결과: {len(matches)}건 (전체 {len(blocks)}블록 중)"
+    return header + "\n".join(matches)
+
+
+@tool("update_notion_block")
+def update_notion_block(block_id: str, new_content: str) -> str:
+    """특정 블록의 텍스트 내용을 교체한다. block_id는 search_notion_blocks로 찾은 ID. 블록 타입은 유지되고 내용만 바뀐다."""
+    # 기존 블록 가져오기
+    resp = _api_request("GET", f"/blocks/{block_id}")
+    if "error" in resp:
+        return f"블록 조회 실패: {resp['error']}"
+
+    btype = resp.get("type", "")
+    old_text = _block_text(resp)
+
+    # 지원하는 블록 타입
+    supported = {
+        "paragraph", "heading_1", "heading_2", "heading_3",
+        "bulleted_list_item", "numbered_list_item", "to_do", "code",
+        "toggle", "callout", "quote",
+    }
+    if btype not in supported:
+        return f"수정 불가능한 블록 타입: {btype}"
+
+    # 새 rich_text 생성
+    rich_text = _parse_inline_formatting(new_content)
+
+    # 블록 업데이트
+    update_body: dict = {btype: {"rich_text": rich_text}}
+
+    # 코드블록은 language 유지
+    if btype == "code":
+        old_lang = resp.get("code", {}).get("language", "plain text")
+        update_body["code"]["language"] = old_lang
+
+    resp = _api_request("PATCH", f"/blocks/{block_id}", update_body)
+    if "error" in resp:
+        return f"블록 수정 실패: {resp['error']}"
+
+    return f"블록 수정 완료 (id: {block_id}, type: {btype})\n  이전: {old_text[:200]}\n  이후: {new_content[:200]}"
+
+
+@tool("delete_notion_block")
+def delete_notion_block(block_id: str) -> str:
+    """특정 블록을 삭제한다. block_id는 search_notion_blocks로 찾은 ID."""
+    # 삭제 전 내용 확인
+    resp = _api_request("GET", f"/blocks/{block_id}")
+    if "error" in resp:
+        return f"블록 조회 실패: {resp['error']}"
+
+    btype = resp.get("type", "")
+    old_text = _block_text(resp)
+
+    # 삭제 실행
+    resp = _api_request("DELETE", f"/blocks/{block_id}")
+    if "error" in resp:
+        return f"블록 삭제 실패: {resp['error']}"
+
+    return f"블록 삭제 완료 (id: {block_id}, type: {btype})\n  삭제된 내용: {old_text[:200]}"
+
+
+@tool("insert_after_notion_block")
+def insert_after_notion_block(page: str, after_block_id: str, markdown_content: str) -> str:
+    """특정 블록 뒤에 새 블록을 삽입한다. page는 페이지 이름/ID, after_block_id는 기준 블록 ID."""
+    page_id = _resolve_page_id(page)
+    if not page_id:
+        return f"페이지를 찾을 수 없습니다: {page}"
+
+    blocks = _markdown_to_blocks(markdown_content)
+    if not blocks:
+        return "변환할 블록이 없습니다."
+
+    # 93블록씩 분할 전송 (after 파라미터 사용)
+    total_added = 0
+    current_after = after_block_id
+    for i in range(0, len(blocks), MAX_BLOCKS_PER_REQUEST):
+        chunk = blocks[i:i + MAX_BLOCKS_PER_REQUEST]
+        resp = _api_request("PATCH", f"/blocks/{page_id}/children", {
+            "children": chunk,
+            "after": current_after,
+        })
+        if "error" in resp:
+            return f"삽입 실패: {resp['error']} (이전 {total_added}개는 반영됨)"
+        results = resp.get("results", [])
+        total_added += len(results)
+        # 다음 청크는 마지막으로 삽입된 블록 뒤에
+        if results:
+            current_after = results[-1]["id"]
+
+    return f"블록 {after_block_id} 뒤에 {total_added}개 블록 삽입 완료"
+
+
 @tool("query_notion_database")
 def query_notion_database(database_id: str, filter_json: str = "") -> str:
     """Notion 데이터베이스를 쿼리한다. filter_json은 Notion filter 객체의 JSON 문자열 (선택)."""

@@ -1,0 +1,41 @@
+edit_notion:
+  description: >
+    Notion 페이지의 내용을 수정한다.
+
+    [대상 페이지]
+    {page}
+
+    [편집 지시]
+    {edit_instruction}
+
+    [필수 수행 단계]
+    1. read_notion_page 도구로 대상 페이지의 전체 내용을 파악한다.
+       8000자 초과 시 read_notion_page_full로 나머지를 읽는다.
+    2. search_notion_blocks 도구로 수정할 위치를 검색한다.
+       - 검색 결과가 여러 건이면, 전후 맥락(이전/다음 블록)을 분석하여
+         편집 지시에 가장 부합하는 블록을 선택한다.
+       - 검색 결과가 없으면 다른 키워드로 재검색한다.
+    3. 편집 유형에 따라 적절한 도구를 사용한다:
+       - 내용 수정: update_notion_block (블록 ID + 새 내용)
+       - 블록 삭제: delete_notion_block (블록 ID)
+       - 새 내용 삽입: insert_after_notion_block (페이지 + 기준 블록 ID + 마크다운)
+       - 맨 아래 추가: append_to_notion_page (페이지 + 마크다운)
+    4. 수정 후 search_notion_blocks로 변경 결과를 검증한다.
+
+    [판단 규칙]
+    - 검색 매치가 2건 이상이면, 편집 지시의 의도와 가장 부합하는 것을 선택
+    - heading 블록 수정 시 하위 내용은 유지 (heading만 수정)
+    - 여러 블록을 연속 수정해야 하면 위에서 아래 순서로 처리
+    - 확신이 없으면 수정하지 말고 "확인 필요" 메시지를 출력
+
+    [출력 형식]
+    수행한 편집 작업을 아래 형식으로 보고한다:
+    - 작업: (수정/삭제/삽입)
+    - 대상 블록 ID:
+    - 이전 내용:
+    - 이후 내용:
+    - 검증 결과: (성공/실패)
+  expected_output: >
+    편집 작업 보고서. 수행한 작업 목록, 변경 전후 비교, 검증 결과 포함.
+  agent: notion_editor
+  output_file: output/notion-edit-result.md

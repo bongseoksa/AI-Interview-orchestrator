@@ -14,10 +14,15 @@ from src.crews.data.crew import DataCrew
 from src.crews.documentation.crew import DocumentationCrew
 from src.crews.review.crew import ReviewCrew
 from src.crews.codegen.crew import CodegenCrew, REPO_PATHS
+from src.crews.notion_edit.crew import NotionEditCrew
 from src.tools.notion_tools import (
     list_notion_pages,
     _read_page_raw,
     append_to_notion_page,
+    search_notion_blocks,
+    update_notion_block,
+    delete_notion_block,
+    insert_after_notion_block,
     PAGE_ID_MAP,
 )
 
@@ -135,12 +140,16 @@ def run_codegen():
 
 
 def run_notion():
-    """노션 페이지 직접 조작 (읽기/쓰기)"""
+    """노션 페이지 직접 조작"""
     if len(sys.argv) < 3:
         print("사용법:")
-        print("  python main.py notion list                       # 페이지 목록")
-        print('  python main.py notion read <페이지이름|ID>       # 페이지 읽기')
-        print('  python main.py notion write <페이지이름|ID> <내용> # 페이지에 추가')
+        print("  python main.py notion list                                # 페이지 목록")
+        print('  python main.py notion read <페이지>                       # 페이지 읽기')
+        print('  python main.py notion write <페이지> <내용>               # 페이지에 추가')
+        print('  python main.py notion search <페이지> <키워드>            # 블록 검색')
+        print('  python main.py notion update <블록ID> <새내용>            # 블록 수정')
+        print('  python main.py notion delete <블록ID>                     # 블록 삭제')
+        print('  python main.py notion insert <페이지> <기준블록ID> <내용> # 블록 뒤에 삽입')
         sys.exit(1)
 
     action = sys.argv[2]
@@ -167,8 +176,68 @@ def run_notion():
         print(append_to_notion_page.run(page=page, markdown_content=content))
         return
 
+    if action == "search":
+        if len(sys.argv) < 5:
+            print('사용법: python main.py notion search <페이지> <키워드>')
+            sys.exit(1)
+        page = sys.argv[3]
+        keyword = " ".join(sys.argv[4:])
+        print(search_notion_blocks.run(page=page, keyword=keyword))
+        return
+
+    if action == "update":
+        if len(sys.argv) < 5:
+            print('사용법: python main.py notion update <블록ID> "새 내용"')
+            sys.exit(1)
+        block_id = sys.argv[3]
+        content = " ".join(sys.argv[4:])
+        print(update_notion_block.run(block_id=block_id, new_content=content))
+        return
+
+    if action == "delete":
+        if len(sys.argv) < 4:
+            print('사용법: python main.py notion delete <블록ID>')
+            sys.exit(1)
+        block_id = sys.argv[3]
+        print(delete_notion_block.run(block_id=block_id))
+        return
+
+    if action == "insert":
+        if len(sys.argv) < 6:
+            print('사용법: python main.py notion insert <페이지> <기준블록ID> "마크다운 내용"')
+            sys.exit(1)
+        page = sys.argv[3]
+        after_id = sys.argv[4]
+        content = " ".join(sys.argv[5:])
+        print(insert_after_notion_block.run(page=page, after_block_id=after_id, markdown_content=content))
+        return
+
     print(f"알 수 없는 액션: {action}")
-    print("사용 가능: list, read, write")
+    print("사용 가능: list, read, write, search, update, delete, insert")
+
+
+def run_notion_edit():
+    """AI 기반 노션 편집 — 검색 결과를 AI가 검증하여 정확한 블록 편집"""
+    if len(sys.argv) < 4:
+        print("사용법: python main.py notion-edit <페이지> <편집 지시>")
+        print('  예시: python main.py notion-edit 의사결정 "Step 4 상태를 완료로 변경"')
+        print('  예시: python main.py notion-edit 기획서 "카테고리 수를 9개에서 10개로 수정"')
+        sys.exit(1)
+
+    page = sys.argv[2]
+    instruction = " ".join(sys.argv[3:])
+
+    print(f"  대상 페이지: {page}")
+    print(f"  편집 지시: {instruction}")
+
+    inputs = {
+        "page": page,
+        "edit_instruction": instruction,
+    }
+    result = NotionEditCrew().crew().kickoff(inputs=inputs)
+    print("\n=== 노션 편집 완료 ===")
+    print(result)
+    return result
 
 
 COMMANDS = {
@@ -182,7 +251,8 @@ COMMANDS = {
     "docs": ("문서 감사 + 노션 초안", run_documentation),
     "review": ("외부인사 리뷰", run_review),
     "codegen": ("코드 생성 (codegen <repo> <task>)", run_codegen),
-    "notion": ("노션 조작 (notion list|read|write)", run_notion),
+    "notion": ("노션 조작 (notion list|read|write|search|...)", run_notion),
+    "notion-edit": ("AI 노션 편집 (notion-edit <페이지> <지시>)", run_notion_edit),
 }
 
 

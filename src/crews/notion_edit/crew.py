@@ -1,14 +1,13 @@
-"""서기관리 Crew (문서 감사 + CHANGELOG 동기화 + 노션 읽기/쓰기)"""
+"""노션 편집 Crew — AI 모델이 검색 결과를 검증하여 정확한 블록을 편집"""
+
+from typing import List
 
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
 from crewai.agents.agent_builder.base_agent import BaseAgent
-from typing import List
 
 from src.config.llm import get_llm, HIGH_PERF_MODEL
-from src.tools.file_tools import list_directory_recursive, read_file, write_file
 from src.tools.notion_tools import (
-    list_notion_pages,
     read_notion_page,
     read_notion_page_full,
     append_to_notion_page,
@@ -16,13 +15,12 @@ from src.tools.notion_tools import (
     update_notion_block,
     delete_notion_block,
     insert_after_notion_block,
-    query_notion_database,
 )
 
 
 @CrewBase
-class DocumentationCrew:
-    """문서 정합성 검증, 변경 이력 관리, 노션 직접 읽기/쓰기 Crew"""
+class NotionEditCrew:
+    """AI 모델이 검색 결과를 분석하여 정확한 노션 블록을 편집하는 Crew"""
 
     agents: List[BaseAgent]
     tasks: List[Task]
@@ -31,15 +29,11 @@ class DocumentationCrew:
     tasks_config = "config/tasks.yaml"
 
     @agent
-    def doc_secretary(self) -> Agent:
+    def notion_editor(self) -> Agent:
         return Agent(
-            config=self.agents_config["doc_secretary"],
+            config=self.agents_config["notion_editor"],
             llm=get_llm(HIGH_PERF_MODEL),
             tools=[
-                list_directory_recursive,
-                read_file,
-                write_file,
-                list_notion_pages,
                 read_notion_page,
                 read_notion_page_full,
                 append_to_notion_page,
@@ -47,28 +41,15 @@ class DocumentationCrew:
                 update_notion_block,
                 delete_notion_block,
                 insert_after_notion_block,
-                query_notion_database,
             ],
             allow_delegation=False,
             verbose=True,
         )
 
     @task
-    def doc_audit(self) -> Task:
+    def edit_notion(self) -> Task:
         return Task(
-            config=self.tasks_config["doc_audit"],
-        )
-
-    @task
-    def changelog_update(self) -> Task:
-        return Task(
-            config=self.tasks_config["changelog_update"],
-        )
-
-    @task
-    def notion_draft(self) -> Task:
-        return Task(
-            config=self.tasks_config["notion_draft"],
+            config=self.tasks_config["edit_notion"],
         )
 
     @crew
