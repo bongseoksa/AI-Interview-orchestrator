@@ -52,6 +52,12 @@ class PlanningCrew:
             config=self.tasks_config["user_stories"],
         )
 
+    @task
+    def spec_consistency_review(self) -> Task:
+        return Task(
+            config=self.tasks_config["spec_consistency_review"],
+        )
+
     @crew
     def crew(self) -> Crew:
         return Crew(

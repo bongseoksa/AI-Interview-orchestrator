@@ -141,6 +141,34 @@ python main.py review        # 외부인사 리뷰 (Devil's Advocate)
 
 > 모든 Crew는 Tier 1 (`gemma4:26b`) 사용 — 품질 최우선, 응답 지연 허용
 
+## 개발 역할 분담 (필수 원칙)
+
+**이 레포의 에이전트가 주도적으로 설계·분석·검증을 수행하고, Claude Code는 서포트 역할만 한다.**
+
+### 워크플로우
+
+1. **설계 단계** — Orchestrator 에이전트(CrewAI)가 주도
+   - 마일스톤별 전용 스크립트(`scripts/design_*.py`)를 작성하여 관련 Crew 실행
+   - FrontendCrew: 컴포넌트 설계, 페이지 구조 → `output/` 산출물 생성
+   - QACrew: 테스트 전략, 테스트 케이스 → `output/` 산출물 생성
+   - ArchitectCrew: 스키마 설계, 데이터 흐름 → `output/` 산출물 생성
+   - ReviewCrew: Devil's Advocate 리뷰 → `output/` 산출물 생성
+
+2. **구현 단계** — Claude Code가 에이전트 산출물 기반으로 서포트
+   - 에이전트 산출물(`output/`)을 입력으로 받아 코드 구현
+   - 에이전트 설계를 최대한 반영하되, 기술적 제약 시 조정 가능
+   - 구현 완료 후 에이전트(QACrew)의 테스트 케이스로 검증
+
+3. **검증 단계** — Orchestrator 에이전트가 최종 검토
+   - DocumentationCrew: 문서 정합성 감사
+   - ReviewCrew: 외부인사 관점 리뷰
+
+### 금지 사항
+
+- Claude Code가 에이전트 없이 단독으로 설계 결정을 내리지 않는다
+- 에이전트 산출물 없이 새로운 마일스톤의 구현을 시작하지 않는다
+- 에이전트 설계와 다른 방향의 구현은 반드시 사유를 기록한다
+
 ## 관련 레포
 
 - `AI-Interview-web` — 프론트엔드 (Next.js 16, pnpm)

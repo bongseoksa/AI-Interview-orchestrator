@@ -61,3 +61,27 @@ user_stories:
   context:
     - feature_spec
   output_file: output/step4-user-stories.md
+
+spec_consistency_review:
+  description: >
+    "{topic}" 관련 프로젝트의 핵심 스펙이 모든 문서에서 일관되는지 크로스 체크한다.
+    PM 관점에서 제품 기능 정의, 마일스톤, 데이터 규모 등이 문서별로 상충하지 않는지 검증한다.
+
+    [크로스 체크 항목 — 반드시 모두 검증]
+    1. 카테고리 수 및 목록: PRD vs 시드 데이터 뱅크 vs DB ENUM vs 코드 상수 vs Handoff
+    2. Q&A 데이터 수: 시드 데이터 뱅크 총계 vs Handoff 명시 수 vs DB 실제 적재 수
+    3. 마일스톤 정의: PRD 빌드 순서(M1~M6) vs Handoff Task 목록 vs 진행 가이드
+    4. 기능 범위: PRD P0/P1/P2 분류 vs Handoff 작업 항목
+    5. 기술 스택 버전: PRD vs CLAUDE.md vs package.json
+
+    [불일치 발견 시 처리]
+    - 각 불일치 항목에 대해 "어느 문서가 정본(Source of Truth)인지" 명시
+    - 수정이 필요한 문서 목록과 구체적인 수정 내용 제안
+    - 심각도 분류: Critical(제품 기능 영향) / Warning(정보 불일치) / Info(표현 차이)
+  expected_output: >
+    스펙 정합성 검토 보고서 (마크다운).
+    각 검증 항목별 결과(일치/불일치), 불일치 상세 내역,
+    정본 기준, 수정 대상 문서 목록, 구체적 수정 제안 포함.
+    작업 리스트(Action Items) 형태로 정리.
+  agent: product_manager
+  output_file: output/spec-consistency-review.md
