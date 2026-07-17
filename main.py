@@ -2,6 +2,8 @@
 
 import sys
 
+from src.config.crew_logger import crew_logger  # noqa: F401 — 이벤트 버스 자동 등록
+
 from src.crews.research.crew import ResearchCrew
 from src.crews.planning.crew import PlanningCrew
 from src.crews.architect.crew import ArchitectCrew
@@ -77,10 +79,11 @@ def run_data():
 
 
 def run_documentation():
-    """서기관리 (문서 감사 + CHANGELOG) 실행"""
+    """서기관리 (문서 감사 + CHANGELOG + 노션 초안) 실행"""
     inputs = {"topic": "AI Interview 프로젝트 전체 문서"}
     result = DocumentationCrew().crew().kickoff(inputs=inputs)
-    print("\n=== 문서 감사 완료 ===")
+    print("\n=== 문서 감사 + 노션 초안 완료 ===")
+    print("노션 초안: output/notion-update-draft.md")
     print(result)
     return result
 
@@ -102,7 +105,7 @@ COMMANDS = {
     "qa": ("QA 테스트 전략", run_qa),
     "infra": ("인프라 CI/CD", run_infra),
     "data": ("데이터 파이프라인", run_data),
-    "docs": ("문서 감사", run_documentation),
+    "docs": ("문서 감사 + 노션 초안", run_documentation),
     "review": ("외부인사 리뷰", run_review),
 }
 

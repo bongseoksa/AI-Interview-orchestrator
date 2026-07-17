@@ -1,4 +1,4 @@
-"""서기관리 Crew (문서 감사 + CHANGELOG 동기화)"""
+"""서기관리 Crew (문서 감사 + CHANGELOG 동기화 + 노션 초안 생성)"""
 
 from crewai import Agent, Crew, Process, Task
 from crewai.project import CrewBase, agent, crew, task
@@ -10,7 +10,7 @@ from src.config.llm import get_llm, HIGH_PERF_MODEL
 
 @CrewBase
 class DocumentationCrew:
-    """문서 정합성 검증 및 변경 이력 관리 Crew"""
+    """문서 정합성 검증, 변경 이력 관리, 노션 업데이트 초안 생성 Crew"""
 
     agents: List[BaseAgent]
     tasks: List[Task]
@@ -36,6 +36,12 @@ class DocumentationCrew:
     def changelog_update(self) -> Task:
         return Task(
             config=self.tasks_config["changelog_update"],
+        )
+
+    @task
+    def notion_draft(self) -> Task:
+        return Task(
+            config=self.tasks_config["notion_draft"],
         )
 
     @crew
