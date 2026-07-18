@@ -240,6 +240,18 @@ def run_notion_edit():
     return result
 
 
+def run_artifacts():
+    """산출물 레지스트리 동기화 — 로컬 산출물 스캔 → 분류 → 노션 기록"""
+    from scripts.sync_artifacts import main as sync_main
+    return sync_main()
+
+
+def run_meetings():
+    """에이전트 회의록 동기화 — 3개 레포 검토 → 로그 분석 → 노션 기록"""
+    from scripts.sync_meeting_notes import main as meetings_main
+    return meetings_main()
+
+
 COMMANDS = {
     "research": ("Step 1: 시장 조사", run_research),
     "planning": ("Step 2-4: 기획", run_planning),
@@ -253,6 +265,8 @@ COMMANDS = {
     "codegen": ("코드 생성 (codegen <repo> <task>)", run_codegen),
     "notion": ("노션 조작 (notion list|read|write|search|...)", run_notion),
     "notion-edit": ("AI 노션 편집 (notion-edit <페이지> <지시>)", run_notion_edit),
+    "artifacts": ("산출물 레지스트리 동기화 (로컬→노션)", run_artifacts),
+    "meetings": ("에이전트 회의록 동기화 (3개 레포→노션)", run_meetings),
 }
 
 
