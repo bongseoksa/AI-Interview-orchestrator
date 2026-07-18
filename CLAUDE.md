@@ -108,7 +108,7 @@ python main.py notion-edit <페이지> "편집 지시"
 
 # === 산출물 관리 ===
 python main.py artifacts       # 산출물 레지스트리 동기화 (로컬 → 노션)
-python main.py meetings        # 에이전트 회의록 동기화 (3개 레포 → 노션)
+python main.py meetings        # 에이전트 회의록 동기화 (3개 레포 → 노션, 일자+주제별 하위 페이지)
 
 # === 유틸리티 스크립트 ===
 # 노션 동기화 (서기에이전트 초안 → Notion 반영)
@@ -161,6 +161,7 @@ python scripts/translate_content.py --questions-only  # 질문만
 | `update_notion_block` | notion_tools.py | 블록 내용 수정 |
 | `delete_notion_block` | notion_tools.py | 블록 삭제 |
 | `insert_after_notion_block` | notion_tools.py | 특정 블록 뒤에 삽입 |
+| `create_notion_child_page` | notion_tools.py | 부모 페이지 아래에 자식 페이지 생성 |
 | `query_notion_database` | notion_tools.py | 데이터베이스 쿼리 |
 
 ### Notion API 안전 마진

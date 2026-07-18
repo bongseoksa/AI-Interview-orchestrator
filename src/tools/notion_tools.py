@@ -76,10 +76,17 @@ def _resolve_page_id(page_name_or_id: str) -> str | None:
     # UUID 형식이면 그대로 반환
     if re.match(r"^[0-9a-f-]{32,36}$", page_name_or_id):
         return page_name_or_id
-    # 이름으로 매핑
+    # 정확한 이름 매칭 우선
+    if page_name_or_id in PAGE_ID_MAP:
+        return PAGE_ID_MAP[page_name_or_id]
+    # 부분 매칭 (긴 이름 우선으로 정렬하여 가장 구체적인 매칭 선택)
+    candidates = []
     for name, pid in PAGE_ID_MAP.items():
         if name in page_name_or_id or page_name_or_id in name:
-            return pid
+            candidates.append((len(name), name, pid))
+    if candidates:
+        candidates.sort(reverse=True)  # 가장 긴(구체적인) 이름 우선
+        return candidates[0][2]
     return None
 
 
@@ -554,6 +561,47 @@ def insert_after_notion_block(page: str, after_block_id: str, markdown_content: 
             current_after = results[-1]["id"]
 
     return f"블록 {after_block_id} 뒤에 {total_added}개 블록 삽입 완료"
+
+
+@tool("create_notion_child_page")
+def create_notion_child_page(parent_page: str, title: str, markdown_content: str = "") -> str:
+    """부모 페이지 아래에 새 자식 페이지를 생성한다. parent_page는 페이지 이름 또는 ID, title은 자식 페이지 제목. markdown_content가 있으면 페이지 내용으로 추가된다. 생성된 페이지 ID를 반환한다."""
+    parent_id = _resolve_page_id(parent_page)
+    if not parent_id:
+        return f"부모 페이지를 찾을 수 없습니다: {parent_page}\n사용 가능한 페이지: {', '.join(PAGE_ID_MAP.keys())}"
+
+    # 자식 페이지 생성 (Notion Pages API)
+    body: dict = {
+        "parent": {"page_id": parent_id},
+        "properties": {
+            "title": {
+                "title": [{"type": "text", "text": {"content": title}}]
+            }
+        },
+    }
+
+    # 마크다운 내용이 있으면 블록으로 변환하여 children에 추가 (최대 93개)
+    if markdown_content:
+        blocks = _markdown_to_blocks(markdown_content)
+        if blocks:
+            body["children"] = blocks[:MAX_BLOCKS_PER_REQUEST]
+
+    resp = _api_request("POST", "/pages", body)
+    if "error" in resp:
+        return f"자식 페이지 생성 실패: {resp['error']}"
+
+    new_page_id = resp.get("id", "")
+
+    # 93개 초과 블록이 있으면 추가 append
+    if markdown_content:
+        blocks = _markdown_to_blocks(markdown_content)
+        if len(blocks) > MAX_BLOCKS_PER_REQUEST:
+            remaining = blocks[MAX_BLOCKS_PER_REQUEST:]
+            for i in range(0, len(remaining), MAX_BLOCKS_PER_REQUEST):
+                chunk = remaining[i:i + MAX_BLOCKS_PER_REQUEST]
+                _api_request("PATCH", f"/blocks/{new_page_id}/children", {"children": chunk})
+
+    return f"자식 페이지 생성 완료: '{title}' (page_id: {new_page_id}, parent: {parent_id})"
 
 
 @tool("query_notion_database")
