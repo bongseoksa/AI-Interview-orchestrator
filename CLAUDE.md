@@ -7,6 +7,7 @@
 - 11개 에이전트의 페르소나 정의 원본 (YAML) 관리
 - 각 레포(web/server)의 `.claude/agents/` 서브에이전트 생성 스크립트
 - Phase별 워크플로우 정의
+- 환경 설정/모델 선정 상세: `ONBOARDING.md` 참조
 - CrewAI + Ollama 기반 자율 에이전트 실행 환경
 
 ## AI 모델 & 에이전트 프레임워크
@@ -19,8 +20,6 @@
 
 ### AI 모델 2-Tier 전략 (Ollama 로컬 모델)
 
-자료 수집·개발용은 답변이 늦어도 고성능 모델을 고정하고, 서비스 내 유저 대면 콘텐츠 생성은 경량 모델을 사용한다.
-
 | Tier | 모델 | RAM | 속도 | 용도 |
 |------|------|-----|------|------|
 | **Tier 1 (고성능)** | `gemma4:26b` MoE | ~15GB | ~70-80 t/s | 시드 데이터 생성, 학습 콘텐츠 작성, Q&A 검증, 시장 조사, PRD 작성 |
@@ -28,71 +27,15 @@
 | **Tier 2 (경량)** | `gemma4:12b` Dense | ~6.6GB | ~80-90 t/s | 유저 대면 콘텐츠 생성 (AI 요약·팁, 면접 피드백 등) |
 | **Tier 2 대안** | `qwen3:8b` Dense | ~5.2GB | ~120+ t/s | 빠른 반복, 경량 태스크 |
 
-- **Tier 1**: 품질 최우선, 응답 지연 허용 — ResearchCrew, PlanningCrew, ArchitectCrew 등 모든 개발용 Crew에 적용
+- **Tier 1**: 품질 최우선, 응답 지연 허용 — 모든 개발용 Crew에 적용
 - **Tier 2**: 속도 우선 — 향후 서비스용 콘텐츠 생성 Crew에 적용
-
-### 사전 준비
-
-```bash
-# 1. Ollama 모델 다운로드 (최초 1회)
-ollama pull gemma4:26b        # Tier 1 — 개발용 기본 모델 (~15GB)
-ollama pull gemma4:12b        # Tier 2 — 유저 대면용 (~6.6GB)
-ollama pull qwen3:8b          # Tier 2 대안 — 빠른 반복용 (선택)
-
-# 2. Python 가상환경 활성화 + Crew 실행
-source .venv/bin/activate
-python main.py <command>      # 사용 가능한 명령어는 '실행 명령어' 섹션 참조
-```
-
-### 모델 선택 가이드 (M4 Pro 48GB, 273 GB/s 기준)
-
-| 모델 | 타입 | 활성 | RAM | 속도 | Tool-call | 용도 |
-|------|------|------|-----|------|-----------|------|
-| `gemma4:26b` | MoE | 4B | ~15GB | ~70-80 t/s | ~90% | **Tier 1 — 개발용 기본 모델** |
-| `gemma4:12b` | Dense | 12B | ~6.6GB | ~80-90 t/s | ~90% | **Tier 2 — 유저 대면용** |
-| `qwen3:8b` | Dense | 8B | ~5.2GB | ~120+ t/s | ~85% | 빠른 반복 |
-| `qwen3.5:35b-a3b` | MoE | 3B | ~20GB | ~70-80 t/s | 85% | 코딩 특화 |
-| `qwen3:14b` | Dense | 14B | ~9GB | ~60-70 t/s | 85-90% | 범용 대안 |
-
-### 모델 선정 근거
-
-프레임워크 5종 비교 (CrewAI vs LangGraph vs smolagents vs AutoGen vs Swarm),
-모델 6종 비교 (Gemma 4, Qwen3, Qwen3.5, Llama 3.3, DeepSeek R1, Phi-4)를 수행.
-
-**검토 기준**: 라이선스(Apache 2.0 필수), M4 Pro 48GB 하드웨어 호환성,
-에이전트 tool-call 신뢰도, 응답 속도(tok/s), RAM 사용량.
-
-**Gemma 4 26B 개발용 기본 모델 채택 이유**:
-1. MoE 아키텍처 → 활성 파라미터 4B로 26B 품질을 12B급 속도로 제공
-2. ~15GB RAM → 48GB에서 여유롭게 구동
-3. 자료 수집·분석·콘텐츠 생성 등 품질이 중요한 태스크에 최적
-4. 네이티브 function calling 내장 → tool-call 신뢰도 ~90%
-5. Apache 2.0 → MAU 제한 없음 (Llama의 7억 제한 vs 없음)
-
-**Gemma 4 12B 유저 대면용 모델 선정 이유**:
-1. ~6.6GB RAM → 경량, 다른 작업 병행 가능
-2. ~80-90 tok/s → 빠른 응답 속도
-3. MMLU Pro 77.2% → 유저 대면 품질 충분
-4. tool-call 신뢰도 ~90%
-
-**참고 자료**:
-- HuggingFace Open LLM Leaderboard: huggingface.co/collections/open-llm-leaderboard
-- HuggingFace 2026 LLM 비교: huggingface.co/blog/daya-shankar/open-source-llms
-- Apple Silicon LLM 벤치마크: llmcheck.net/benchmarks
+- 모델 비교표, 선정 근거 상세: `ONBOARDING.md` 참조
 
 ## 비용 제약
 
 - **Claude API 토큰 사용 불가** — 이 레포에서는 유료 LLM API를 직접 호출하지 않는다
 - 자율 에이전트 실행 시 Ollama 로컬 모델만 사용
 - Claude Code 서브에이전트(.claude/agents/)는 사용 가능 (기존 구독 활용)
-
-## 환경 설정
-
-```bash
-# .env 파일 설정 (최초 1회)
-cp .env.example .env
-# .env에 NOTION_TOKEN 값 설정 (Notion Integration Token)
-```
 
 ## 디렉토리 구조
 
@@ -106,8 +49,8 @@ src/
     file_tools.py     # 파일 조작 도구 (크로스 레포 읽기/쓰기, 경로 안전성 검증)
     notion_tools.py   # Notion REST API 도구 (읽기/쓰기/검색/수정/삭제/삽입)
   crews/
-    research/         # Step 1: 시장 조사 — 전략 관리자
-    planning/         # Step 2-4: 기획 — PM + PjM
+    research/         # Phase 1: 시장 조사 — 전략 관리자
+    planning/         # Phase 2-4: 기획 — PM + PjM
     architect/        # 아키텍처 설계 — 풀스택 아키텍트 + 백엔드 시니어
     frontend/         # 프론트엔드 설계 — FE 시니어
     qa/               # QA 테스트 전략 — QA 엔지니어
@@ -134,8 +77,8 @@ logs/                 # Crew 실행 로그 — 에이전트 발화 추적용 (gi
 source .venv/bin/activate
 
 # === 설계 Crew (Ollama 로컬 모델) ===
-python main.py research      # Step 1: 시장 조사
-python main.py planning      # Step 2-4: 기획 (PRD/스펙/유저스토리)
+python main.py research      # Phase 1: 시장 조사
+python main.py planning      # Phase 2-4: 기획 (PRD/스펙/유저스토리)
 python main.py architect     # 아키텍처 설계 (스키마/데이터 흐름)
 python main.py frontend      # 프론트엔드 설계 (컴포넌트/페이지 구조)
 python main.py qa            # QA (테스트 전략/테스트 케이스)
@@ -162,6 +105,10 @@ python main.py notion insert <페이지> <기준블록ID> "내용"  # 블록 뒤
 python main.py notion-edit <페이지> "편집 지시"
 # 예: python main.py notion-edit 의사결정 "Step 4 상태를 완료로 변경"
 # 예: python main.py notion-edit 기획서 "카테고리 수를 9개에서 10개로 수정"
+
+# === 산출물 관리 ===
+python main.py artifacts       # 산출물 레지스트리 동기화 (로컬 → 노션)
+python main.py meetings        # 에이전트 회의록 동기화 (3개 레포 → 노션)
 
 # === 유틸리티 스크립트 ===
 # 노션 동기화 (서기에이전트 초안 → Notion 반영)

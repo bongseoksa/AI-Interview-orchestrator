@@ -1,7 +1,7 @@
 # Design: Crew 실행 로거 (CrewExecutionLogger)
 
 > 작성일: 2026-07-17
-> 상태: 설계 확정, 구현 대기
+> 상태: 구현 완료 (src/config/crew_logger.py)
 
 ## 1. 배경 및 목적
 
@@ -26,8 +26,8 @@
 ### 3.1 핵심 컴포넌트
 
 ```
-src/config/crew_logger.py    # BaseEventListener 구현 (신규)
-main.py                      # import 1줄 추가
+src/config/crew_logger.py    # BaseEventListener 구현 (완료)
+main.py                      # import 1줄 추가 (완료)
 logs/                        # 실행 로그 저장 디렉토리 (gitignored)
 ```
 
@@ -113,7 +113,7 @@ logs/                  # (신규) 실행 로그 디렉토리 (gitignored)
 # Design: 서기에이전트 노션 연동 확장
 
 > 작성일: 2026-07-17
-> 상태: 설계 확정, 구현 대기
+> 상태: 구현 완료 (src/crews/documentation/, scripts/sync_notion.py)
 
 ## 1. 배경
 

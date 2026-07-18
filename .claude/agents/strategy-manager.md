@@ -1,6 +1,6 @@
 ---
 name: strategy-manager
-description: 경쟁사/시장 분석, 벤치마킹, 차별화 포인트 도출 시 호출. Step 1 Discovery 담당.
+description: 경쟁사/시장 분석, 벤치마킹, 차별화 포인트 도출 시 호출. Phase 1 Discovery 담당.
 tools: Read, Grep, Glob, WebSearch, WebFetch, Bash
 model: sonnet
 ---

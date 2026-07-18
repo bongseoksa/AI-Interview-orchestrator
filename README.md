@@ -40,8 +40,8 @@ ollama pull gemma4:12b    # Tier 2 (~6.6GB)
 ```bash
 source .venv/bin/activate
 
-python main.py research      # Step 1: 시장 조사
-python main.py planning      # Step 2-4: 기획 (PRD/스펙/유저스토리)
+python main.py research      # Phase 1: 시장 조사
+python main.py planning      # Phase 2-4: 기획 (PRD/스펙/유저스토리)
 python main.py architect     # 아키텍처 설계
 python main.py frontend      # 프론트엔드 설계
 python main.py qa            # QA 테스트 전략
@@ -73,7 +73,7 @@ python main.py review        # 외부인사 리뷰
 agents/               # Agent YAML definitions (11, SSOT)
 src/
   config/llm.py       # Ollama LLM config (2-Tier)
-  crews/              # 9 Crews (each: config/agents.yaml + tasks.yaml + crew.py)
+  crews/              # 11 Crews (each: config/agents.yaml + tasks.yaml + crew.py)
 scripts/              # Utilities (sync-agents.sh)
 .claude/agents/       # Claude Code sub-agents
 main.py               # CrewAI entry point

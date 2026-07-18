@@ -57,8 +57,8 @@ ollama serve
 source .venv/bin/activate
 
 # 3. Crew 실행
-python main.py research       # Step 1: 시장 조사
-python main.py planning       # Step 2-4: 기획
+python main.py research       # Phase 1: 시장 조사
+python main.py planning       # Phase 2-4: 기획
 python main.py architect      # 아키텍처 설계
 python main.py frontend       # 프론트엔드 설계
 python main.py qa             # QA 테스트 전략
@@ -94,8 +94,8 @@ deactivate
 |--------|------|
 | `source .venv/bin/activate` | 가상환경 활성화 |
 | `deactivate` | 가상환경 비활성화 |
-| `python main.py research` | Step 1 시장 조사 실행 |
-| `python main.py planning` | Step 2-4 기획 실행 |
+| `python main.py research` | Phase 1 시장 조사 실행 |
+| `python main.py planning` | Phase 2-4 기획 실행 |
 | `python main.py architect` | 아키텍처 설계 실행 |
 | `python main.py frontend` | 프론트엔드 설계 실행 |
 | `python main.py qa` | QA 테스트 전략 실행 |
@@ -123,8 +123,8 @@ src/
     file_tools.py     # 파일 조작 도구 (크로스 레포, 경로 검증)
     notion_tools.py   # Notion REST API 도구 (9개 도구, 7% 안전 마진)
   crews/              # 11개 Crew (각각 config/agents.yaml + config/tasks.yaml + crew.py)
-    research/         # Step 1: 시장 조사 — 전략 관리자
-    planning/         # Step 2-4: 기획 — PM + PjM
+    research/         # Phase 1: 시장 조사 — 전략 관리자
+    planning/         # Phase 2-4: 기획 — PM + PjM
     architect/        # 아키텍처 설계 — 풀스택 아키텍트 + 백엔드 시니어
     frontend/         # 프론트엔드 설계 — FE 시니어
     qa/               # QA 테스트 전략 — QA 엔지니어
@@ -155,6 +155,26 @@ output/               # Crew 실행 결과물 (gitignored)
 하드웨어: Apple M4 Pro 48GB (273 GB/s 메모리 대역폭)
 
 **2-Tier 원칙**: 자료 수집·개발 Crew는 Tier 1(26B, 품질 최우선, 응답 지연 허용), 유저 대면 콘텐츠 생성은 Tier 2(12B, 속도 우선)
+
+### 모델 선택 가이드
+
+| 모델 | 타입 | 활성 | RAM | 속도 | Tool-call | 용도 |
+|------|------|------|-----|------|-----------|------|
+| `gemma4:26b` | MoE | 4B | ~15GB | ~70-80 t/s | ~90% | **Tier 1 — 개발용 기본 모델** |
+| `gemma4:12b` | Dense | 12B | ~6.6GB | ~80-90 t/s | ~90% | **Tier 2 — 유저 대면용** |
+| `qwen3:8b` | Dense | 8B | ~5.2GB | ~120+ t/s | ~85% | 빠른 반복 |
+| `qwen3.5:35b-a3b` | MoE | 3B | ~20GB | ~70-80 t/s | 85% | 코딩 특화 |
+| `qwen3:14b` | Dense | 14B | ~9GB | ~60-70 t/s | 85-90% | 범용 대안 |
+
+### 모델 선정 근거
+
+프레임워크 5종 비교 (CrewAI vs LangGraph vs smolagents vs AutoGen vs Swarm),
+모델 6종 비교 (Gemma 4, Qwen3, Qwen3.5, Llama 3.3, DeepSeek R1, Phi-4)를 수행.
+
+**Gemma 4 26B 채택 이유**: MoE 아키텍처(활성 4B) → 26B 품질을 12B급 속도로 제공, ~15GB RAM, 네이티브 function calling (tool-call ~90%), Apache 2.0
+**Gemma 4 12B 채택 이유**: ~6.6GB RAM 경량, ~80-90 tok/s 빠른 응답, MMLU Pro 77.2%, tool-call ~90%
+
+**참고 자료**: `src/config/llm.py` (상세 비교표 포함)
 
 ## 9. 비용 제약
 
