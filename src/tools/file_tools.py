@@ -15,9 +15,11 @@ PROJECT_BASE = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def _validate_path(path_str: str) -> Path:
-    """경로가 프로젝트 범위 내인지 검증한다."""
-    p = Path(path_str).resolve()
-    if not str(p).startswith(str(PROJECT_BASE)):
+    """경로가 프로젝트 범위 내인지 검증한다. 심볼릭 링크를 해석하여 경로 탈출을 방지."""
+    p = Path(path_str).resolve(strict=False)
+    try:
+        p.relative_to(PROJECT_BASE)
+    except ValueError:
         raise ValueError(f"허용 범위 밖 경로: {p}")
     return p
 

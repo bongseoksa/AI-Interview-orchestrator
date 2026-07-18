@@ -20,23 +20,18 @@ NOTION_API_BASE = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
 ENV_PATH = Path(__file__).resolve().parent.parent.parent / ".env"
 
-# 페이지 이름 → Notion 페이지 ID 매핑
-PAGE_ID_MAP: dict[str, str] = {
-    "메인": "3a0141f8-c327-80eb-ba18-d9637ff76f63",
-    "메인 허브": "3a0141f8-c327-80eb-ba18-d9637ff76f63",
-    "AI Interview": "3a0141f8-c327-80eb-ba18-d9637ff76f63",
-    "기획서": "3a0141f8-c327-81fe-bfbf-e35fd03e8c19",
-    "사업계획서": "3a0141f8-c327-8186-9810-c8c025aa943b",
-    "진행 가이드": "3a0141f8-c327-81ba-9d0e-e7444b9d2df8",
-    "프로젝트 진행 가이드": "3a0141f8-c327-81ba-9d0e-e7444b9d2df8",
-    "에이전트 조직 구조": "3a0141f8-c327-81e1-8d29-d4698f6e6161",
-    "의사결정 기록": "3a0141f8-c327-81fd-8884-e1a9447b1fc0",
-    "Step 1 시장 조사 보고서": "3a0141f8-c327-8189-8d69-dbc5531fff9a",
-    "Step 2 PRD": "3a0141f8-c327-8111-a9bd-f62a1d4a92b9",
-    "Step 3 Handoff": "3a0141f8-c327-8153-bd9f-ce64916fda71",
-    "시드 데이터 뱅크": "3a0141f8-c327-81a8-9d4e-e9aaeb3665a3",
-    "Q&A DB": "3a0141f8-c327-81dd-a1a2-f103d25b61bc",
-}
+# 페이지 이름 → Notion 페이지 ID 매핑 (외부 설정 파일에서 로드)
+_PAGES_CONFIG = Path(__file__).resolve().parent.parent.parent / "config" / "notion_pages.json"
+
+
+def _load_page_id_map() -> dict[str, str]:
+    """config/notion_pages.json에서 페이지 매핑을 로드한다."""
+    if _PAGES_CONFIG.exists():
+        return json.loads(_PAGES_CONFIG.read_text(encoding="utf-8"))
+    return {}
+
+
+PAGE_ID_MAP: dict[str, str] = _load_page_id_map()
 
 
 def _get_token() -> str:
@@ -88,7 +83,7 @@ def _resolve_page_id(page_name_or_id: str) -> str | None:
     return None
 
 
-def _blocks_to_text(blocks: list[dict], indent: str = "") -> str:
+def _blocks_to_text(blocks: list[dict], indent: str = "", _depth: int = 0, _max_depth: int = 10) -> str:
     """Notion 블록 리스트를 읽기 쉬운 텍스트로 변환한다."""
     lines: list[str] = []
     for block in blocks:
@@ -136,11 +131,11 @@ def _blocks_to_text(blocks: list[dict], indent: str = "") -> str:
         elif text:
             lines.append(f"{indent}{text}")
 
-        # has_children 처리
-        if block.get("has_children") and btype not in ("child_page", "child_database"):
+        # has_children 처리 (max_depth 제한으로 무한 루프 방지)
+        if block.get("has_children") and btype not in ("child_page", "child_database") and _depth < _max_depth:
             child_resp = _api_request("GET", f"/blocks/{block['id']}/children")
             if "results" in child_resp:
-                lines.append(_blocks_to_text(child_resp["results"], indent + "  "))
+                lines.append(_blocks_to_text(child_resp["results"], indent + "  ", _depth + 1, _max_depth))
 
     return "\n".join(lines)
 

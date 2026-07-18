@@ -6,7 +6,7 @@
 
 - 11개 에이전트의 페르소나 정의 원본 (YAML) 관리
 - 각 레포(web/server)의 `.claude/agents/` 서브에이전트 생성 스크립트
-- Step별 워크플로우 정의
+- Phase별 워크플로우 정의
 - CrewAI + Ollama 기반 자율 에이전트 실행 환경
 
 ## AI 모델 & 에이전트 프레임워크
@@ -177,7 +177,7 @@ python scripts/translate_content.py --nodes-only   # 노드만
 python scripts/translate_content.py --questions-only  # 질문만
 ```
 
-## Crew-에이전트 매핑 (11 Crew, 13 에이전트)
+## Crew-에이전트 매핑 (11 Crew, 11 YAML 에이전트 + 2 인라인 에이전트)
 
 | Crew | 에이전트 | 산출물 |
 |------|----------|--------|
@@ -190,8 +190,11 @@ python scripts/translate_content.py --questions-only  # 질문만
 | DataCrew | 데이터 엔지니어 | 스키마 최적화, 파이프라인 |
 | DocumentationCrew | 서기관리 | 문서 감사, CHANGELOG, 노션 업데이트 초안 |
 | ReviewCrew | 외부인사 | Devil's Advocate, 경쟁력 분석 |
-| CodegenCrew | 코드 생성 개발자 | 타 레포(web/server) 코드 파일 생성 |
-| NotionEditCrew | 노션 편집 에이전트 | 키워드 검색 → AI 검증 → 정확한 블록 편집 |
+| CodegenCrew | 코드 생성 개발자 *(인라인)* | 타 레포(web/server) 코드 파일 생성 |
+| NotionEditCrew | 노션 편집 에이전트 *(인라인)* | 키워드 검색 → AI 검증 → 정확한 블록 편집 |
+
+> YAML 정의(`agents/`): 11개 — Crew 내 `config/agents.yaml`로 관리되는 에이전트
+> 인라인 정의: 2개 — CodegenCrew, NotionEditCrew의 에이전트는 Crew 코드 내에서 직접 정의
 
 > 모든 Crew는 Tier 1 (`gemma4:26b`) 사용 — 품질 최우선, 응답 지연 허용
 

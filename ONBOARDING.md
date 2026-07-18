@@ -18,7 +18,7 @@
 
 | 항목 | 최소 버전 | 확인 명령어 |
 |------|----------|-----------|
-| Python | 3.11+ | `python3 --version` |
+| Python | 3.13 | `python3 --version` |
 | Ollama | 0.19+ | `ollama --version` |
 | Git | 2.x | `git --version` |
 

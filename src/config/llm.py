@@ -18,8 +18,10 @@
 참고: https://huggingface.co/blog/daya-shankar/open-source-llms
 """
 
-import urllib.request
 import json
+import sys
+import urllib.error
+import urllib.request
 
 from crewai import LLM
 
@@ -49,7 +51,11 @@ def _get_available_models() -> set[str]:
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
         _available_models = {m["name"] for m in data.get("models", [])}
-    except Exception:
+    except (urllib.error.URLError, OSError):
+        print("  [LLM] Ollama 서버 연결 실패 — 로컬 모델 목록 조회 불가", file=sys.stderr)
+        _available_models = set()
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"  [LLM] Ollama 응답 파싱 실패: {e}", file=sys.stderr)
         _available_models = set()
     return _available_models
 
