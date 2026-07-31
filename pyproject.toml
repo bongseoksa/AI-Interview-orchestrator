@@ -5,6 +5,7 @@ description = "AI Interview 에이전트 오케스트레이터 — CrewAI + Olla
 requires-python = ">=3.11"
 dependencies = [
     "crewai>=1.15.0,<2.0.0",
+    "fastapi>=0.115.0",
 ]
 
 [project.scripts]

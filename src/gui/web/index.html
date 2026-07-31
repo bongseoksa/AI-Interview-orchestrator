@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Interview Office</title>
+<style>
+:root {
+  --bg: #1a1b2e;
+  --surface: #252640;
+  --surface2: #2d2e4a;
+  --text: #e0e0e8;
+  --dim: #8888a0;
+  --accent: #6c8cff;
+  --green: #4caf84;
+  --red: #e05555;
+  --orange: #e89040;
+  --yellow: #e8c840;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; font-size: 13px; }
+
+/* ── Header ── */
+#header { display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--surface2); }
+#header h1 { font-size: 14px; font-weight: 600; }
+#header .stat { color: var(--dim); font-size: 12px; }
+#header .stat b { color: var(--text); }
+
+/* ── Main ── */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Floor (left) ── */
+#floor { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+
+#desks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.desk { background: var(--surface); border-radius: 8px; padding: 12px; border: 2px solid transparent; transition: all 0.3s; min-height: 80px; }
+.desk.active { border-color: var(--accent); box-shadow: 0 0 12px rgba(108,140,255,0.2); }
+.desk.error { border-color: var(--red); }
+.desk .role { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.desk .crew-tag { font-size: 10px; color: var(--dim); }
+.desk .status-icon { font-size: 20px; margin: 4px 0; }
+.desk .speech { font-size: 10px; color: var(--dim); margin-top: 4px; max-height: 32px; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Meeting room ── */
+#meeting { background: var(--surface); border-radius: 8px; padding: 12px; border: 1px solid var(--surface2); min-height: 100px; }
+#meeting h3 { font-size: 12px; color: var(--dim); margin-bottom: 8px; }
+#meeting-content { font-size: 11px; }
+#meeting .member { display: inline-block; background: var(--surface2); padding: 2px 8px; border-radius: 4px; margin: 2px; font-size: 11px; }
+
+/* ── Control bar ── */
+#controls { padding: 8px 16px; background: var(--surface); border-top: 1px solid var(--surface2); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#controls button { background: var(--surface2); color: var(--text); border: 1px solid var(--dim); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: inherit; }
+#controls button:hover { background: var(--accent); border-color: var(--accent); }
+#controls button:disabled { opacity: 0.3; cursor: not-allowed; }
+#controls button.running { background: var(--orange); border-color: var(--orange); color: #000; }
+
+/* ── Feed (right) ── */
+#feed { width: 320px; background: var(--surface); border-left: 1px solid var(--surface2); display: flex; flex-direction: column; }
+#feed h3 { font-size: 12px; color: var(--dim); padding: 8px 12px; border-bottom: 1px solid var(--surface2); }
+#feed-list { flex: 1; overflow-y: auto; padding: 4px; }
+.feed-item { padding: 4px 8px; border-bottom: 1px solid var(--bg); font-size: 11px; }
+.feed-item .ts { color: var(--dim); margin-right: 6px; }
+.feed-item .tag { font-weight: 600; margin-right: 4px; }
+.feed-item .tag.crew { color: var(--green); }
+.feed-item .tag.agent { color: var(--accent); }
+.feed-item .tag.task { color: var(--yellow); }
+.feed-item .tag.tool { color: var(--orange); }
+.feed-item .tag.llm { color: var(--dim); }
+.feed-item .tag.error { color: var(--red); }
+.feed-item .msg { color: var(--dim); }
+
+/* status icons */
+.s-idle::before { content: '\1F4A4'; }
+.s-working::before { content: '\2328\FE0F'; }
+.s-thinking::before { content: '\1F4AD'; }
+.s-speaking::before { content: '\1F4AC'; }
+.s-tool::before { content: '\1F527'; }
+.s-error::before { content: '\26A0\FE0F'; }
+.s-done::before { content: '\2705'; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>AI Interview Office</h1>
+  <span class="stat" id="timer"></span>
+  <span class="stat" id="tokens"></span>
+  <span class="stat" id="conn-status">connecting...</span>
+</div>
+
+<div id="main">
+  <div id="floor">
+    <div id="desks"></div>
+    <div id="meeting"><h3>Meeting Room</h3><div id="meeting-content"><span style="color:var(--dim)">No active crew</span></div></div>
+  </div>
+  <div id="feed">
+    <h3>Activity Feed</h3>
+    <div id="feed-list"></div>
+  </div>
+</div>
+
+<div id="controls">
+  <span style="color:var(--dim);font-size:11px;margin-right:8px;">Crews:</span>
+</div>
+
+<script>
+const API = '';
+const WS_URL = `ws://${location.host}/ws/office`;
+
+// ── State ──
+const state = {
+  agents: {},       // agent_role → {role, crew, status, speech, desk_el}
+  totalTokens: 0,
+  activeCrew: null,
+  startTime: null,
+};
+
+// ── Init ──
+async function init() {
+  const [agents, crews] = await Promise.all([
+    fetch('/api/agents').then(r => r.json()),
+    fetch('/api/crews').then(r => r.json()),
+  ]);
+
+  const desksEl = document.getElementById('desks');
+  // Agent YAML → Crew 매핑
+  const crewMap = {
+    'strategy-manager': 'Research', 'product-manager': 'Planning', 'project-manager': 'Planning',
+    'fullstack-architect': 'Architect', 'backend-senior': 'Architect',
+    'frontend-senior': 'Frontend', 'qa-engineer': 'QA', 'infra-expert': 'Infra',
+    'data-engineer': 'Data', 'doc-secretary': 'Documentation', 'external-advisor': 'Review',
+    'codegen-developer': 'Codegen', 'notion-editor': 'NotionEdit',
+  };
+
+  agents.forEach(a => {
+    const id = a.agent_id || a.role;
+    const role = a.role || id;
+    const crew = a.crew || crewMap[a.agent_id] || '';
+    const el = document.createElement('div');
+    el.className = 'desk';
+    el.innerHTML = `<div class="role" title="${role}">${role}</div><div class="crew-tag">${crew}</div><div class="status-icon s-idle"></div><div class="speech"></div>`;
+    desksEl.appendChild(el);
+    state.agents[role] = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.status-icon'), speech_el: el.querySelector('.speech') };
+  });
+
+  // Control buttons
+  const ctrlEl = document.getElementById('controls');
+  crews.forEach(c => {
+    if (['codegen', 'notion-edit', 'notion'].includes(c.name)) return; // 인자 필요 → 건너뜀
+    const btn = document.createElement('button');
+    btn.textContent = c.name;
+    btn.title = c.description;
+    btn.onclick = () => runCrew(c.name, btn);
+    ctrlEl.appendChild(btn);
+  });
+
+  connectWS();
+}
+
+// ── WebSocket ──
+function connectWS() {
+  const ws = new WebSocket(WS_URL);
+  const statusEl = document.getElementById('conn-status');
+  ws.onopen = () => { statusEl.textContent = 'connected'; statusEl.style.color = 'var(--green)'; };
+  ws.onclose = () => { statusEl.textContent = 'disconnected'; statusEl.style.color = 'var(--red)'; setTimeout(connectWS, 2000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (e) => handleEvent(JSON.parse(e.data));
+}
+
+// ── Event Handler ──
+function handleEvent(ev) {
+  addFeedItem(ev);
+
+  const [cat, action] = ev.type.split('.');
+
+  if (cat === 'crew') {
+    if (action === 'started') {
+      state.activeCrew = ev.crew;
+      state.startTime = Date.now();
+      updateTimer();
+      updateMeeting(ev.crew, 'In progress...');
+    } else if (action === 'completed' || action === 'failed') {
+      if (ev.payload?.tokens?.total) state.totalTokens += ev.payload.tokens.total;
+      updateMeeting(ev.crew, action === 'completed' ? 'Completed' : `Failed: ${ev.payload?.error || ''}`);
+      state.activeCrew = null;
+      state.startTime = null;
+      resetAllDesks();
+      updateButtons(false);
+    }
+    updateTokens();
+  }
+
+  if (cat === 'agent') {
+    const a = findAgent(ev.agent);
+    if (!a) return;
+    if (action === 'started') setAgentStatus(a, 'working');
+    else if (action === 'completed') {
+      setAgentStatus(a, 'speaking');
+      a.speech = truncate(ev.payload?.text, 80);
+      a.speech_el.textContent = a.speech;
+      setTimeout(() => setAgentStatus(a, 'idle'), 3000);
+    }
+    else if (action === 'error') setAgentStatus(a, 'error');
+  }
+
+  if (cat === 'tool') {
+    const a = findAgent(ev.agent);
+    if (!a) return;
+    if (action === 'started') setAgentStatus(a, 'tool');
+    else if (action === 'finished') setAgentStatus(a, 'working');
+    else if (action === 'error') setAgentStatus(a, 'error');
+  }
+
+  if (cat === 'llm') {
+    if (ev.payload?.tokens) {
+      const t = ev.payload.tokens;
+      if (t.prompt) state.totalTokens += t.prompt;
+      if (t.completion) state.totalTokens += t.completion;
+      updateTokens();
+    }
+  }
+}
+
+// ── Helpers ──
+function findAgent(role) {
+  if (!role) return null;
+  return state.agents[role] || Object.values(state.agents).find(a => role.includes(a.role) || a.role.includes(role));
+}
+
+function setAgentStatus(a, status) {
+  a.status = status;
+  a.icon_el.className = 'status-icon s-' + ({working:'working', thinking:'thinking', speaking:'speaking', tool:'tool', error:'error', idle:'idle'}[status] || 'idle');
+  a.desk_el.classList.toggle('active', status !== 'idle');
+  a.desk_el.classList.toggle('error', status === 'error');
+}
+
+function resetAllDesks() {
+  Object.values(state.agents).forEach(a => setAgentStatus(a, 'idle'));
+}
+
+function truncate(s, n) {
+  if (!s) return '';
+  s = String(s);
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+function addFeedItem(ev) {
+  const list = document.getElementById('feed-list');
+  const [cat] = ev.type.split('.');
+  const ts = ev.ts ? new Date(ev.ts).toLocaleTimeString('ko-KR', {hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+  const msg = ev.payload?.error || truncate(ev.payload?.text, 120) || ev.agent || '';
+
+  const el = document.createElement('div');
+  el.className = 'feed-item';
+  const tagClass = ev.type.includes('error') || ev.type.includes('fail') ? 'error' : cat;
+  el.innerHTML = `<span class="ts">${ts}</span><span class="tag ${tagClass}">${ev.type}</span><span class="msg">${escHtml(msg)}</span>`;
+  list.appendChild(el);
+  list.scrollTop = list.scrollHeight;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function updateTokens() {
+  document.getElementById('tokens').innerHTML = `Tokens: <b>${(state.totalTokens/1000).toFixed(1)}k</b>`;
+}
+
+function updateMeeting(crew, text) {
+  document.getElementById('meeting-content').innerHTML = `<b>${crew || ''}</b> — ${escHtml(text)}`;
+}
+
+let timerInterval;
+function updateTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (!state.startTime) { document.getElementById('timer').textContent = ''; return; }
+    const s = Math.floor((Date.now() - state.startTime) / 1000);
+    const m = Math.floor(s / 60);
+    document.getElementById('timer').innerHTML = `<b>${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}</b>`;
+  }, 1000);
+}
+
+// ── Crew execution ──
+async function runCrew(name, btn) {
+  const res = await fetch(`/api/run/${name}`, {method:'POST'});
+  const data = await res.json();
+  if (data.error) { alert(data.error); return; }
+  updateButtons(true);
+  btn.classList.add('running');
+}
+
+function updateButtons(busy) {
+  document.querySelectorAll('#controls button').forEach(b => {
+    b.disabled = busy;
+    if (!busy) b.classList.remove('running');
+  });
+}
+
+init();
+</script>
+</body>
+</html>

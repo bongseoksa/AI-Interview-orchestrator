@@ -44,6 +44,9 @@ agent_cache/
 
 # CrewAI
 output/
+
+# GUI runtime data
+gui_data/
 *.db
 .crewai/
 

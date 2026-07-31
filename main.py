@@ -3,6 +3,7 @@
 import sys
 
 from src.config.crew_logger import crew_logger  # noqa: F401 — 이벤트 버스 자동 등록
+from src.gui.listener import gui_listener  # noqa: F401 — GUI 이벤트 리스너 자동 등록
 
 from src.crews.research.crew import ResearchCrew
 from src.crews.planning.crew import PlanningCrew
@@ -240,6 +241,12 @@ def run_notion_edit():
     return result
 
 
+def run_gui():
+    """에이전트 사무실 GUI 실행"""
+    from src.gui.server import start_server
+    start_server()
+
+
 def run_artifacts():
     """산출물 레지스트리 동기화 — 로컬 산출물 스캔 → 분류 → 노션 기록"""
     from scripts.sync_artifacts import main as sync_main
@@ -265,6 +272,7 @@ COMMANDS = {
     "codegen": ("코드 생성 (codegen <repo> <task>)", run_codegen),
     "notion": ("노션 조작 (notion list|read|write|search|...)", run_notion),
     "notion-edit": ("AI 노션 편집 (notion-edit <페이지> <지시>)", run_notion_edit),
+    "gui": ("에이전트 사무실 GUI 실행", run_gui),
     "artifacts": ("산출물 레지스트리 동기화 (로컬→노션)", run_artifacts),
     "meetings": ("에이전트 회의록 동기화 (3개 레포→노션)", run_meetings),
 }
