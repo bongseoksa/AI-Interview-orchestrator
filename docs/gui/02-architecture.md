@@ -203,7 +203,18 @@ CrewAI 이벤트에는 run_id가 없고, `CrewKickoffStartedEvent.crew_name`도 
 섞인다**. GUI도 같은 제약이므로 **MVP는 순차 실행**(통제 바 버튼 잠금, 01 §5)으로 못박는다.
 동시 다중 크루는 범위 밖 — 필요 시 run_id별 리스너 인스턴스 분리로 확장.
 
-### 8-5. 발화 충실도 — 로거 절단 한계
-현 로거는 발화를 300자로 절단(`…(+N자)`)하므로, 회의록 조회(05 §B)·속기록의 "가감 없는" 원문이
-제한된다. 무절단 세션 캡처 여부는 미결정(03 §4 **D8**), 상세는
-[`../design-secretary-meeting-notes.md`](../design-secretary-meeting-notes.md) §6.
+### 8-5. 발화 충실도 — 3계층 원칙 (절단은 표시용일 뿐) ★D8 채택
+300자 절단은 하드 리밋이 아니라 **표시용 자기 제한**이다. 계층별로 다르게 적용한다:
+
+| 계층 | 절단 | 근거 |
+|------|------|------|
+| 표시 (터미널 로그 `logs/*.log`, GUI 라이브 피드) | 300자 유지 | 가독성·IO. 클릭 시 원문 펼침 |
+| 저장 (`gui_data/sessions/<run_id>.jsonl`, `output/meeting-notes/*.md`) | **무절단** | 로컬 파일은 길이 제한 없음 |
+| 노션 | **무절단 + 청킹** | `_chunk_text`/`_parse_inline_formatting`가 1860자 단위로 **split**(자르지 않음) → 콘텐츠 손실 0 |
+
+- **전제**: 무절단 원문은 **소스에서 캡처**해야 한다. `logs/*.log`는 이미 절단돼 있으니
+  `GUIEventListener`가 `event.output`/`event.response` **원문을 그대로** 세션 JSONL에 적재.
+  `crew_logger`의 300자 로그는 표시용으로 유지(무변경).
+- **노션 유의**(제한 아님, UX): 매우 긴 회의는 블록 수↑ → PATCH 다회·페이지 무거움.
+  속기록은 **토글로 접어** 삽입 권장. 상세:
+  [`../design-secretary-meeting-notes.md`](../design-secretary-meeting-notes.md) §6·§7.
