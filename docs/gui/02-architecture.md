@@ -82,7 +82,7 @@ WebSocket으로 흐르는 단일 메시지 포맷. 프론트는 `type`으로 분
 
 ```jsonc
 {
-  "type": "agent.started",        // crew.started/completed/failed, task.*, agent.*, tool.*, llm.*
+  "type": "agent.started",        // crew.*, task.*, agent.*, tool.*, llm.* + 파생: review.requested, human.input_requested, alert.raised
   "ts": "2026-07-31T22:25:03.120",
   "crew": "ArchitectCrew",
   "agent": "풀스택 아키텍트 (Fullstack Architect)",
@@ -112,10 +112,12 @@ WebSocket으로 흐르는 단일 메시지 포맷. 프론트는 `type`으로 분
 | GET | `/api/crews` | 실행 가능한 Crew/명령 목록 (`main.py`의 `COMMANDS` 재사용) |
 | POST | `/api/run/{crew}` | Crew 백그라운드 실행 (codegen/notion-edit은 body에 인자) |
 | GET | `/api/session/{id}/status` | 실행 상태·경과·토큰 |
-| GET | `/api/outputs` | `output/` 산출물 목록 |
-| GET | `/api/outputs/{name}` | 산출물 내용 미리보기 |
 | GET | `/api/logs/{run}` | 원본 `logs/*.log` (회의록 원문 링크용) |
 | WS | `/ws/office` | 실시간 OfficeEvent 스트림 |
+| — | **확인함·문서·회의록 API** | 아래는 [`05-human-review-and-docs.md`](05-human-review-and-docs.md) §E |
+| GET/POST | `/api/review`, `/api/review/count`, `/api/review/{id}/preview`, `/api/review/{id}/resolve` | 사람 확인함(승인·반려·답변·dry-run) |
+| GET | `/api/docs/artifacts`, `/api/docs/artifacts/{id}` | 작업결과문서 목록·내용 (기존 `/api/outputs` 흡수) |
+| GET | `/api/meetings`, `/api/meetings/{run_id}`, `/api/meetings/{run_id}/replay` | 회의(실행) 목록·트랜스크립트·리플레이 |
 
 ## 5. 모듈 구조 (신규 `src/gui/`)
 
@@ -128,13 +130,24 @@ src/gui/
   roster.py       # agents/*.yaml 로드 + 인라인 에이전트 메타 보강
   runner.py       # Crew를 worker thread로 kickoff, 세션 상태 추적
   server.py       # FastAPI 앱 (REST + WebSocket + StaticFiles)
+  review/         # 사람 확인함 — 05 §F
+    models.py     #   ReviewItem(pydantic)
+    store.py      #   확인함 CRUD(SQLite/JSON) + 뱃지 카운트
+    actions.py    #   승인 후속 동작(sync_notion dry-run/실행) 어댑터
+  archive/        # 문서·회의록 — 05 §F
+    sessions.py   #   세션 JSONL append/read, 트랜스크립트 재구성
+    artifacts.py  #   output/ 스캔 + 메타 인덱싱
   web/            # 프론트엔드 (정적 산출물 또는 소스)
     index.html
     office.(js|ts)
     assets/       # 아바타·도구 아이콘·사운드(옵션)
+gui_data/         # (신규, gitignored) review.db, sessions/<run_id>.jsonl, index.json
 main.py           # (+) "gui" 명령 추가 — uvicorn 기동 + 브라우저/웹뷰 오픈
 pyproject.toml    # (+) fastapi, uvicorn, (Phase2) pywebview 의존성
 ```
+
+> `listener.py`는 WebSocket 브로드캐스트와 **동시에** ① 세션 JSONL 적재(회의록·리플레이 소스)와
+> ② 확인함 항목 자동 파생(초안=유형1, 실패=유형5)을 수행한다. 상세: [`05`](05-human-review-and-docs.md).
 
 `main.py` 확장 (기존 `COMMANDS` 딕셔너리에 1줄):
 
@@ -145,9 +158,12 @@ pyproject.toml    # (+) fastapi, uvicorn, (Phase2) pywebview 의존성
 ## 6. 기존 코드 영향 범위
 
 - **무변경**: `crew_logger.py`, 11개 `crews/*/crew.py`, `tools/*`, `agents/*.yaml`.
-- **추가만**: `src/gui/` 신규 패키지, `main.py`에 `gui` 명령 1개, `pyproject.toml` 의존성.
+- **추가만**: `src/gui/` 신규 패키지, `main.py`에 `gui` 명령 1개, `pyproject.toml` 의존성,
+  `.gitignore`에 `gui_data/` 추가.
 - 리스크 낮음: 이벤트 리스너는 read-only 관찰자. 실패해도 Crew 실행 자체엔 영향 최소화
   (리스너 예외를 삼키는 방어 코드 포함).
+- **단, 확인함 승인 동작**(예: `sync_notion` 실행)은 read-only가 아니다 — 반드시
+  dry-run 미리보기 후 사람 확정 클릭으로만 실행하며, 노션 쓰기는 서기 초안 경유 원칙을 지킨다.
 
 ## 7. 보안·범위
 
