@@ -54,14 +54,15 @@ GM0→GM1이 가치의 80%. GM3(연출)와 GM4(패키징)는 우선순위에 따
 
 ## 4. 미결정 사항 (사용자 확인 필요)
 
-| # | 결정 | 권고 | 비고 |
+| # | 결정 | 권고 | 비고 (레퍼런스 근거는 [`04-references.md`](04-references.md)) |
 |---|------|------|------|
-| D1 | 데스크톱 셸 | PyWebView + PyInstaller | Python 단일 언어. Tauri(경량)·Electron(친숙) 대안 |
-| D2 | 프론트 렌더링 | DOM/CSS MVP → 필요 시 Phaser | 게임형 픽셀 사무실을 처음부터 원하면 Phaser 선착수 |
+| D1 | 데스크톱 셸 | PyWebView + PyInstaller | Python 단일 언어. **Tauri가 이 분야 표준**(AgentRoom·agents-in-the-office)이나 우리는 백엔드가 Python이라 사이드카 배선 필요 → JS 프론트 본격화 시 Tauri 격상 |
+| D2 | 프론트 렌더링 | DOM/CSS MVP → 필요 시 Phaser | 저의존 대안: **agent-town식 Canvas2D**. 게임형 픽셀을 처음부터 원하면 Phaser(AgentOffice 실증) |
 | D3 | 범위 | 관전 + 통제 | 관전 전용이면 GM2 축소 |
 | D4 | 착수 방식 | 로컬 웹 MVP 먼저 | 처음부터 데스크톱 앱을 원하면 GM4를 앞으로 |
-| D5 | 시각 톤 | 스타일라이즈드(깔끔) | 픽셀 도트 감성 vs 미니멀 대시보드 감성 |
+| D5 | 시각 톤 | 스타일라이즈드(깔끔) | 사용자 원본 레퍼런스(DeskRPG)는 **픽셀 도트 멀티플레이 감성**. 픽셀 vs 미니멀 대시보드 |
 | D6 | 사운드/알림 | 옵션(기본 OFF) | 완료·오류 사운드 넣을지 |
+| D7 | 참고 코드 활용 | MIT 사례 학습·부분 차용 | AgentOffice(Ollama 어댑터)·agent-town(저의존 캔버스) 코드 참고. 에셋 라이선스 별도 확인 |
 
 ## 5. 레포 원칙과의 정합
 

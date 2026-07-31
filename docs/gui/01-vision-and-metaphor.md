@@ -26,10 +26,18 @@
 
 ## 2. 조직 구조 = 사무실 공간
 
-- **오픈 플로어**: 11개 책상이 항상 보인다. 지금 출근(활성)한 팀만 조명이 켜진다.
+> 공간 구성은 [`04-references.md`](04-references.md)의 검증된 패턴을 차용한다
+> (Work/Break 분리 = AgentRoom, 회의실+회의록 = DeskRPG, 칸반 = DeskRPG·agent-town).
+
+- **오픈 플로어(Work Room)**: 11개 책상이 항상 보인다. 활성 에이전트만 책상에 앉아 조명이 켜진다.
+- **휴게 공간(Break Room)**: 유휴 상태 에이전트는 책상을 떠나 휴게 공간으로 이동/배회한다
+  → "지금 누가 일하고 누가 쉬는지"가 공간만으로 읽힌다 (AgentRoom의 Work/Break 분리).
 - **회의실**: Crew 하나가 kickoff되면, 소속 에이전트들이 회의실 슬롯으로 이동/강조.
   다중 에이전트 Crew(Planning=PM+PjM, Architect=아키텍트+백엔드)는 함께 앉는다.
+  회의 종료 시 회의록이 저장되고 헤더에서 열람(= 기존 `logs/*.log`와 1:1).
+- **태스크보드(칸반)**: `대기 → 진행중 → 중단 → 완료` 4단계. Task 이벤트가 카드로 이동한다.
 - **산출물 선반**: Task 완료 시 `output/*.md`·`*.sql` 문서 아이콘이 선반에 쌓인다.
+  (선택) 담당 에이전트가 선반까지 걸어가 결과물을 "가져다 놓는" 연출(DeskRPG).
 - **회의록 벽보(Activity Feed)**: 우측 사이드에 이벤트가 시간순 자막으로 흐른다
   (기존 `logs/*.log` 한 줄 = 벽보 한 줄, 의미 동일).
 
@@ -71,18 +79,23 @@ idle ──AgentStart──▶ working ──ToolStart──▶ using-tool ─�
                       error ◀──────────────────────────────────────── idle
 ```
 
-### 4-2. 도구별 아이콘/애니메이션
+### 4-2. 도구별 오브젝트 & 이동 (walk-to-object)
 
+레퍼런스(AgentRoom·agents-in-the-office)의 검증된 패턴: 도구 호출은 단순 아이콘 점등이 아니라
+**해당 오브젝트로 걸어가 상호작용**하는 이동으로 표현한다 → 무엇을 하는지 공간으로 즉시 읽힌다.
 `deploy_to.tools` 및 커스텀 도구(`src/tools/`) 기준:
 
-| 도구 | 사무실 표현 |
-|------|------------|
-| `WebSearch` / `WebFetch` | 돋보기로 인터넷 검색 (외부 창) |
-| `read_file` / `write_file` | 서류 캐비닛 열기/철하기 |
+| 도구 | 오브젝트 / 이동 |
+|------|----------------|
+| `WebSearch` / `WebFetch` | 창가 검색 단말로 이동 → 돋보기로 인터넷 검색 |
+| `read_file` / `write_file` | 서류 캐비닛으로 이동 → 열기/철하기 |
 | `read_notion_page` / `append_to_notion_page` / `update_notion_block` … | 노션 문서함으로 걸어가 열람/수정 |
 | `search_notion_blocks` | 문서함에서 특정 페이지 뒤적임 |
-| `query_notion_database` | Q&A 데이터베이스 조회 |
-| `Bash` / `Grep` / `Glob` | 터미널 단말기 작업 |
+| `query_notion_database` | Q&A 데이터베이스 단말 조회 |
+| `Bash` / `Grep` / `Glob` | 터미널 단말기로 이동 → 작업 |
+
+> **대기/오류 강조**: 입력·승인 대기나 오류 시 화면에 **붉은 비네트 + 경고 표시**로 강하게 알린다
+> (agents-in-the-office). 저사양 모드에서도 텍스트 경고는 항상 노출.
 
 ## 4. 화면 레이아웃 (와이어프레임)
 

@@ -45,15 +45,17 @@
 
 ### 2.2 프론트엔드 (사무실 UI)
 
-| 후보 | 장점 | 단점 | 판정 |
-|------|------|------|------|
-| **DOM/CSS + 경량 상태관리** | 접근성·저사양 유리, 빌드 단순 | 화려한 연출 한계 | **MVP 권장** |
-| Phaser / PixiJS | 게임형 픽셀 사무실, 풍부한 애니메이션 | 번들 큼, 접근성 추가 작업 | Phase 2 옵션 |
-| React + Framer Motion | 컴포넌트화·애니메이션 균형 | Node 빌드 필요 | 중간 절충안 |
+| 후보 | 장점 | 단점 | 판정 | 레퍼런스 실증 |
+|------|------|------|------|--------------|
+| **DOM/CSS + 경량 상태관리** | 접근성·저사양 유리, 빌드 단순 | 화려한 연출 한계 | **MVP 권장** | — |
+| **Canvas 2D 절차적**(스프라이트시트 없음) | 저의존, 빌드 가벼움, 경로탐색 자유 | 픽셀아트 감성은 별도 에셋 필요 | MVP 대안 | agent-town(rafapetter, 의존성 0) |
+| Phaser / PixiJS | 게임형 픽셀 사무실, 풍부한 애니메이션 | 번들 큼, 접근성 추가 작업 | Phase 2 옵션 | AgentOffice(Phaser+React 오버레이) |
+| React + Framer Motion | 컴포넌트화·애니메이션 균형 | Node 빌드 필요 | 중간 절충안 | AgentRoom(React+Canvas2D) |
 
-권고: **바닐라 또는 경량 프레임워크 + CSS 트랜지션으로 MVP**, 반응이 좋으면
-회의실 클로즈업만 Phaser로 고도화. (web 레포는 Next.js지만 이 GUI는 독립 앱이므로
-스택을 강제 공유하지 않는다.)
+권고: **바닐라/경량 프레임워크 + CSS 트랜지션으로 MVP**(또는 agent-town식 저의존 Canvas2D),
+반응이 좋으면 회의실 클로즈업만 Phaser로 고도화. 여러 레퍼런스가 **캔버스(게임 엔진) + HTML UI
+오버레이** 구조를 공통 채택하므로(AgentOffice·AgentRoom), 오버레이 방식을 기본 골격으로 삼는다.
+(web 레포는 Next.js지만 이 GUI는 독립 앱이므로 스택을 강제 공유하지 않는다.)
 
 ### 2.3 데스크톱 셸 (macOS + Windows)
 
@@ -68,6 +70,11 @@
 권고: **Phase 1은 셸 없이 로컬 웹**(`python main.py gui` → 브라우저 오픈)으로 검증하고,
 **Phase 2에서 PyWebView로 감싸** Mac/Windows 바이너리를 만든다. 초경량 배포가 중요해지면
 Tauri로 전환(프론트/이벤트 프로토콜은 그대로 재사용 가능).
+
+> **레퍼런스 주의**: 이 분야 데스크톱 앱(AgentRoom·agents-in-the-office)은 대부분 **Tauri**를
+> 채택했다. 다만 그들은 프론트가 이미 JS/TS이고 백엔드도 Rust다. **우리는 백엔드가 Python(CrewAI)**
+> 이라 Tauri를 쓰면 Python을 사이드카로 배선해야 한다. 그래서 1차 권고는 PyWebView이되,
+> JS 프론트를 본격 구축하기로 하면 Tauri가 강력한 대안이다 (`03-roadmap` D1).
 
 ## 3. 이벤트 스키마 (OfficeEvent)
 

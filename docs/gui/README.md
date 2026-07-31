@@ -57,6 +57,19 @@ CrewAI 이벤트 버스
 | [`01-vision-and-metaphor.md`](01-vision-and-metaphor.md) | 사무실 은유 상세 설계 — 직원 캐스트, 이벤트→시각 상태 매핑, 화면 레이아웃 |
 | [`02-architecture.md`](02-architecture.md) | 이벤트 파이프라인, 기술 스택, 이벤트 스키마, 모듈 구조 |
 | [`03-roadmap.md`](03-roadmap.md) | 단계별 마일스톤, 리스크, 미결정 사항 |
+| [`04-references.md`](04-references.md) | 벤치마크한 오픈소스 "AI 에이전트 사무실" 사례 정리(웹서치) |
+
+## 벤치마킹한 레퍼런스 (핵심)
+
+사용자 제시 레퍼런스([DeskRPG](https://javaexpert.tistory.com/1720) · [OpenClaw 오피스 영상](https://www.youtube.com/watch?v=hLh5K0IWk5E))를
+출발점으로, 유사 오픈소스 사례를 웹서치로 조사했다 (전체: [`04-references.md`](04-references.md)).
+
+- **AgentOffice** — Ollama + Phaser/React 오버레이. **우리와 제약이 거의 동일**해 최적 벤치마크.
+- **AgentRoom / agents-in-the-office** — `구조화 이벤트 → 상태머신 → 캔버스` 파이프라인.
+  우리 `crew_logger → OfficeEvent → WebSocket` 설계가 정석임을 실증. 데스크톱은 **Tauri**.
+- **DeskRPG** — 칸반 태스크보드(대기/진행중/중단/완료) + 회의실 + 회의록.
+- **우리 강점**: 레퍼런스는 대부분 JSONL 로그를 *역으로 감시*하지만, 우리는 CrewAI 이벤트 버스를
+  **직접 소유**해 더 정확한 이벤트를 얻고, 11개 에이전트 페르소나(YAML)가 이미 준비돼 있다.
 
 ## 확정해야 할 결정 (요약)
 
@@ -64,7 +77,7 @@ CrewAI 이벤트 버스
 
 | 결정 | 권고안 | 대안 |
 |------|--------|------|
-| 데스크톱 셸 | **PyWebView + PyInstaller** (Python 단일 언어) | Tauri(최소 용량) / Electron(친숙) |
+| 데스크톱 셸 | **PyWebView + PyInstaller** (Python 단일 언어) | **Tauri**(이 분야 사실상 표준 — AgentRoom·agents-in-the-office) / Electron |
 | 프론트 렌더링 | **DOM/CSS 아바타** (MVP) | Phaser·PixiJS (게임형 픽셀 사무실) |
 | 범위 | **관전 + 통제** (UI에서 Crew 실행) | 관전 전용 |
 | 착수 방식 | **로컬 웹 MVP → 데스크톱 패키징** 2단계 | 처음부터 데스크톱 |
