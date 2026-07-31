@@ -111,8 +111,8 @@ WebSocket으로 흐르는 단일 메시지 포맷. 프론트는 `type`으로 분
 | GET | `/api/agents` | 직원 로스터 (`agents/*.yaml` + 인라인 2종 파싱) |
 | GET | `/api/crews` | 실행 가능한 Crew/명령 목록 (`main.py`의 `COMMANDS` 재사용) |
 | POST | `/api/run/{crew}` | Crew 백그라운드 실행 (codegen/notion-edit은 body에 인자) |
-| GET | `/api/session/{id}/status` | 실행 상태·경과·토큰 |
-| GET | `/api/logs/{run}` | 원본 `logs/*.log` (회의록 원문 링크용) |
+| GET | `/api/session/{run_id}/status` | 실행 상태·경과·토큰 (run_id는 §8-3) |
+| GET | `/api/logs/{run_id}` | 원본 `logs/*.log` (회의록 트랜스크립트 원문 점프용 — 유지) |
 | WS | `/ws/office` | 실시간 OfficeEvent 스트림 |
 | — | **확인함·문서·회의록 API** | 아래는 [`05-human-review-and-docs.md`](05-human-review-and-docs.md) §E |
 | GET/POST | `/api/review`, `/api/review/count`, `/api/review/{id}/preview`, `/api/review/{id}/resolve` | 사람 확인함(승인·반려·답변·dry-run) |
@@ -169,3 +169,41 @@ pyproject.toml    # (+) fastapi, uvicorn, (Phase2) pywebview 의존성
 
 - 로컬 전용 바인딩(`127.0.0.1`) 기본. 원격 관전이 필요하면 인증 계층은 별도 논의.
 - 통제 API(`/api/run`)는 로컬 앱에서만 노출. 외부 공개 시 CSRF/인증 필수(범위 밖).
+
+## 8. 실구현 정합성 — 반드시 짚을 4가지 (구현 전 확정)
+
+설계 검토에서 드러난, 코드로 옮길 때 걸리는 핵심 지점들이다. **모두 GM0 스파이크에서 검증**한다.
+
+### 8-1. 프로세스 경계 — "이벤트 버스 전역"은 *한 프로세스 안*에서만 성립 ★가장 중요
+CrewAI 이벤트 버스는 **프로세스 전역 싱글턴**이지 *머신 전역*이 아니다. 따라서
+`python main.py gui`(GUI 서버 프로세스)와 `python main.py architect`(별도 터미널 프로세스)는
+**서로 다른 프로세스**라 GUI가 그 크루의 이벤트를 직접 받지 못한다. 두 실행 모드로 정리한다:
+
+| 모드 | 실행 방식 | 이벤트 경로 | 용도 |
+|------|-----------|------------|------|
+| **인프로세스(주력)** | GUI가 `/api/run`으로 크루를 **자기 프로세스 안에서** kickoff | 이벤트 버스 직접 수신 → 가장 풍부 | GM2 이후 통제·관전 |
+| **사이드카/테일** | 크루를 별도 CLI로 실행, 그 프로세스의 리스너가 `gui_data/sessions/<run_id>.jsonl` 기록 → GUI가 파일 **tail** | 파일 경유(레퍼런스 AgentRoom식) | CLI 병행 관전 |
+
+> **GM1 DoD 정정**: "터미널에서 `python main.py architect` 실행 시 보인다"는 **사이드카/테일 모드**를
+> 전제로 한다(세션 JSONL을 tail). GUI 버튼 실행(인프로세스)은 GM2부터. 이 구분을 GM0에서 확정한다.
+
+### 8-2. 스레드 → asyncio 핸드오프 (블로킹 kickoff)
+`runner.py`가 kickoff를 **worker thread**에서 돌리면, `GUIEventListener` 콜백도 그 워커 스레드에서
+실행된다. 반면 WebSocket 브로드캐스트는 **asyncio 루프 스레드**에서 일어난다. 스레드 경계를
+넘을 때는 반드시 `loop.call_soon_threadsafe(...)` 또는 `asyncio.run_coroutine_threadsafe(...)`로
+큐에 넣는다(직접 `await`/`queue.put_nowait` 금지). → `bus.py`의 핵심 계약.
+
+### 8-3. run_id 상관관계 (세션 JSONL·확인함 파생)
+CrewAI 이벤트에는 run_id가 없고, `CrewKickoffStartedEvent.crew_name`도 `None`인 경우가 있다
+(`crew_logger`가 `"unknown"`으로 처리 중). 따라서 **run_id는 `runner`가 kickoff 시점에 생성**해
+"현재 실행"으로 리스너에 주입하고, 리스너가 그 값으로 세션 파일·확인함 항목을 태깅한다.
+
+### 8-4. 순차 실행 전제 (동시성 범위)
+`crew_logger`는 단일 파일 핸들·인스턴스 상태(`_crew_name`, `_file`)를 공유해 **동시 실행 시 상태가
+섞인다**. GUI도 같은 제약이므로 **MVP는 순차 실행**(통제 바 버튼 잠금, 01 §5)으로 못박는다.
+동시 다중 크루는 범위 밖 — 필요 시 run_id별 리스너 인스턴스 분리로 확장.
+
+### 8-5. 발화 충실도 — 로거 절단 한계
+현 로거는 발화를 300자로 절단(`…(+N자)`)하므로, 회의록 조회(05 §B)·속기록의 "가감 없는" 원문이
+제한된다. 무절단 세션 캡처 여부는 미결정(03 §4 **D8**), 상세는
+[`../design-secretary-meeting-notes.md`](../design-secretary-meeting-notes.md) §6.

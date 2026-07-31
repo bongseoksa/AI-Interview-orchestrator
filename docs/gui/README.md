@@ -38,8 +38,8 @@
 > "향후 Phase 1에서는 이 로그를 기반으로 GUI 대시보드(WebSocket 실시간 스트리밍)를 구축할 수 있다."
 
 기존 [`src/config/crew_logger.py`](../../src/config/crew_logger.py)의
-`CrewExecutionLogger(BaseEventListener)`가 이미 CrewAI 이벤트 버스의 12종 이벤트를
-가로채고 있다. GUI는 **같은 이벤트 스트림을 파일 대신 WebSocket으로도 흘려보내는 것**이
+`CrewExecutionLogger(BaseEventListener)`가 이미 CrewAI 이벤트 버스의 14종 이벤트를
+가로채고 있다(Crew/Task/Agent 각 3 + Tool 3 + LLM 2). GUI는 **같은 이벤트 스트림을 파일 대신 WebSocket으로도 흘려보내는 것**이
 전부다. 기존 코드는 손대지 않고 형제(sibling) 리스너를 추가한다.
 
 ```
@@ -64,6 +64,10 @@ CrewAI 이벤트 버스
 | [`03-roadmap.md`](03-roadmap.md) | 단계별 마일스톤, 리스크, 미결정 사항 |
 | [`04-references.md`](04-references.md) | 벤치마크한 오픈소스 "AI 에이전트 사무실" 사례 정리(웹서치) |
 | [`05-human-review-and-docs.md`](05-human-review-and-docs.md) | **사람 확인함**(승인·처리) + **작업결과문서·회의록 조회** 기능 스펙 |
+
+> 관련 문서: [`../design-secretary-meeting-notes.md`](../design-secretary-meeting-notes.md) —
+> 서기에이전트 회의록 "정리 요약 + 속기록" 보완 설계 (회의록 조회 05 §B의 발언 원문 소스).
+> 실구현 정합성 주의는 [`02-architecture.md`](02-architecture.md) §8 참조.
 
 ## 벤치마킹한 레퍼런스 (핵심)
 

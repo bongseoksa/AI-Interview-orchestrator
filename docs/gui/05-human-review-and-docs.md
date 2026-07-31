@@ -164,7 +164,8 @@ gui_data/                    # gitignored
 | GET | `/api/meetings/{run_id}` | 회의 트랜스크립트(구조화 이벤트) |
 | GET | `/api/meetings/{run_id}/replay` | 리플레이 스트림(선택) |
 
-기존 `/api/outputs`, `/api/logs/{run}`는 위 `docs`/`meetings`로 흡수·정리.
+기존 `/api/outputs`는 `/api/docs/artifacts`로 흡수. `/api/logs/{run_id}`는 트랜스크립트
+원문 점프용으로 **유지**(02 §4).
 
 ## F. 모듈 추가 (→ `02-architecture §5`에 반영)
 
