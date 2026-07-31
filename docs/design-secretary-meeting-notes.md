@@ -108,16 +108,37 @@ logs/<crew>_<ts>.log   ── parse(Python) ──▶ analyze_meeting_with_llm(L
 
 > 결정: 03 §4 **D8 채택**. MVP도 무절단 저장을 기본으로 한다(파일 크기는 텍스트라 부담 작음).
 
-## 7. 노션 반영 고려 (분량 대응)
+## 7. 노션 반영 — 토글 방식 (확정)
 
 Notion의 블록 100개/요청·rich_text 2000자는 **콘텐츠 제한이 아니라 전송 단위 제한**이다.
 `_chunk_text`/`_parse_inline_formatting`가 1860자 단위로 **나눠 담고**(자르지 않음),
 `_markdown_to_blocks` + `MAX_BLOCKS_PER_REQUEST`가 블록을 페이지네이션한다 →
-**속기록 전문을 손실 없이 노션에 저장 가능**하다. 남는 것은 용량이 아니라 가독성:
+**속기록 전문을 손실 없이 노션에 저장 가능**하다. 남는 것은 가독성이며, **토글 방식으로 확정**한다.
 
-- **노션**: `## 속기록`은 **토글(heading toggle)로 접어서** 삽입 → 길어도 페이지가 지저분해지지 않음.
-  (분량 때문이 아니라 열람 편의 목적. 매우 긴 회의는 PATCH가 여러 번 나가는 점만 감안.)
-- **로컬**: 전체 속기록은 항상 `output/meeting-notes/<page_title>.md`에 무손실 보관.
+### 7-1. 노션 페이지 구조 (확정)
+```
+## 기본 정보
+## 정리 요약            ← 펼침 상태(항상 노출)
+   ### 안건 / 주요 논의 / 결정사항 / 산출물
+▸ 속기록 (발언 전문) N발화   ← 토글 블록(기본 접힘). 펼치면 아래 자식 블록
+     ### [22:25:03] 풀스택 아키텍트
+     > (발화 원문)
+     ### [22:25:15] 풀스택 아키텍트 — 🔧 WebSearch(...)
+     …
+```
+- 정리 요약은 **항상 노출**, 속기록은 **토글로 접어** 삽입 → 길어도 페이지가 지저분하지 않다.
+- 로컬 `output/meeting-notes/<page_title>.md`에는 토글 없이 전문을 그대로 무손실 저장.
+
+### 7-2. 구현 제약 — 현재 `notion_tools.py`는 토글 미지원 ★
+- `_markdown_to_blocks`(쓰기)는 heading/list/code/paragraph만 만들고 **토글 블록을 생성하지 않는다.**
+  (`toggle`은 읽기 함수 `_block_text`·업데이트 허용 목록에만 존재)
+- 노션 토글은 내용을 **자식(children)으로** 품는 구조라 **평면 블록 리스트로는 불가** →
+  **토글+자식 생성 헬퍼를 새로 추가**해야 한다(§8-4).
+- 자식 블록 처리 시 유의:
+  - 한 요청의 중첩 깊이 제한(약 2단계) → 토글 블록을 먼저 만들고, 자식은
+    `PATCH /blocks/{toggle_id}/children`로 **93개 단위 청킹** 추가.
+  - 속기록의 `### 헤더 + > 인용`을 토글 자식으로 넣으므로 depth 관리 필요.
+  - 대안: `heading_3` + `is_toggleable: true` + children (토글형 헤더).
 - 원칙: 노션 쓰기는 서기 초안 → 사람 리뷰 → 반영(2단계) 유지.
 
 ## 8. 변경 지점 (구현 가이드)
@@ -141,6 +162,24 @@ Notion의 블록 100개/요청·rich_text 2000자는 **콘텐츠 제한이 아�
 
 ### 8-3. (선택) `src/config/crew_logger.py`
 - §6-(a) 무절단 속기 스트림 캡처 옵션.
+
+### 8-4. `src/tools/notion_tools.py` — 토글 블록 지원 추가 (필수)
+현재 미지원(§7-2). 아래를 신설한다:
+```python
+def _toggle_block(summary_text: str, children: list[dict]) -> dict:
+    """접히는 토글 블록 생성. children은 별도 PATCH로 추가할 수도 있음."""
+    return {
+        "object": "block", "type": "toggle",
+        "toggle": {
+            "rich_text": _parse_inline_formatting(summary_text),
+            # children은 2단계 초과 시 인라인 금지 → 생성 후 PATCH로 청킹 추가
+        },
+    }
+```
+- `create_meeting_page`(sync_meeting_notes.py)에서: ① 정리 요약 블록 생성 →
+  ② 속기록 토글 블록 생성 → ③ `build_stenograph` 결과를 `_markdown_to_blocks`로 변환해
+  `PATCH /blocks/{toggle_id}/children`에 **93개 단위**로 추가.
+- 회귀 방지: 기존 `_markdown_to_blocks` 시그니처·동작은 건드리지 않고 헬퍼만 추가.
 
 ## 9. Before / After
 
@@ -171,7 +210,8 @@ Notion의 블록 100개/요청·rich_text 2000자는 **콘텐츠 제한이 아�
 - [ ] `create_meeting_page`에 속기록 섹션 결합
 - [ ] `analyze_meeting_with_llm` 출력을 `## 정리 요약` 하위로 재구성
 - [ ] 로컬 무손실 저장(`output/meeting-notes/`)
-- [ ] 노션 분량 대응(토글/요지, §7)
+- [ ] **노션 토글 블록 지원** `notion_tools._toggle_block` 신설 + 자식 93개 청킹 PATCH (§7-2·§8-4)
+- [ ] 노션 회의록: 정리 요약(펼침) + 속기록(토글 접힘) 구조로 반영 (§7-1)
 - [ ] `doc-secretary.yaml` constraints 보강 (§8-2)
 - [ ] (선택) 무절단 캡처 — GUI 세션 로그(GM0)와 통합 (§6)
 
