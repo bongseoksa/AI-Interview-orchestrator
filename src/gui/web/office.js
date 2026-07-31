@@ -464,4 +464,16 @@ function showErrorVignette() {
   setTimeout(() => v.classList.remove('visible'), 2000);
 }
 
+// ── Theme toggle ──
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = isLight ? 'Dark' : 'Light';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+// Restore saved theme
+if (localStorage.getItem('theme') === 'light') {
+  document.documentElement.classList.add('light');
+  document.addEventListener('DOMContentLoaded', () => { const b = document.getElementById('theme-btn'); if (b) b.textContent = 'Dark'; });
+}
+
 init();
