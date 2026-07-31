@@ -90,6 +90,9 @@ open ──(사람 열람)──▶ in_review ──┬─ approve  ─▶ resol
 - **기존 자산 연동**: `docs/meeting-notes/*.md`(정제본), 노션 "에이전트 회의록"(일자+주제별
   하위 페이지), `scripts/sync_meeting_notes.py`. GUI는 **로컬 우선**으로 보여주고, 노션 반영은
   확인함(A) 경유.
+- **속기록 연계**: 서기에이전트의 회의록은 "정리 요약 + 속기록(가감 없는 발언 전문)" 2계층으로
+  보완된다 — [`../design-secretary-meeting-notes.md`](../design-secretary-meeting-notes.md).
+  이 트랜스크립트 뷰어의 발언 원문 소스와 **동일 데이터(세션 JSONL)로 일원화**하는 것을 권장.
 
 ### B-3. 데이터 소스 — 구조화 세션 로그 신설
 
