@@ -102,6 +102,31 @@ body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-se
 .s-tool::before { content: '\1F527'; }
 .s-error::before { content: '\26A0\FE0F'; }
 .s-done::before { content: '\2705'; }
+
+/* ── Dashboard (bottom) ── */
+#dashboard { background: var(--surface); border-top: 1px solid var(--surface2); overflow: hidden; transition: max-height 0.3s ease; }
+#dashboard.collapsed { max-height: 36px; }
+#dashboard.expanded { max-height: 240px; }
+#dash-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; cursor: pointer; user-select: none; }
+#dash-header h3 { font-size: 12px; font-weight: 600; color: var(--dim); }
+#dash-header .dash-summary { font-size: 11px; color: var(--dim); }
+#dash-header .toggle-btn { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 12px; font-family: inherit; }
+#dash-cards { display: flex; gap: 8px; padding: 0 16px 10px; overflow-x: auto; }
+.dash-card { min-width: 180px; max-width: 220px; background: var(--surface2); border-radius: 6px; padding: 8px 10px; flex-shrink: 0; }
+.dash-card .dc-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.dash-card .dc-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.dash-card .dc-dot.active { background: var(--green); }
+.dash-card .dc-dot.error { background: var(--red); }
+.dash-card .dc-name { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-card .dc-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-bottom: 4px; }
+.dash-card .dc-tag { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: rgba(108,140,255,0.15); color: var(--accent); }
+.dash-card .dc-stats { display: flex; flex-direction: column; gap: 3px; }
+.dash-card .dc-stat { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--dim); }
+.dash-card .dc-stat-label { width: 40px; flex-shrink: 0; }
+.dash-card .dc-bar { flex: 1; height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+.dash-card .dc-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+.dash-card .dc-stat-val { width: 32px; text-align: right; flex-shrink: 0; }
+.dash-card .dc-speech { font-size: 9px; color: var(--dim); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
 </head>
 <body>
@@ -131,6 +156,14 @@ body { font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-se
   </div>
 </div>
 
+<div id="dashboard" class="expanded">
+  <div id="dash-header" onclick="toggleDashboard()">
+    <h3>Agent Dashboard <span id="dash-summary" class="dash-summary"></span></h3>
+    <button class="toggle-btn" id="dash-toggle">Collapse</button>
+  </div>
+  <div id="dash-cards"></div>
+</div>
+
 <div id="controls">
   <span style="color:var(--dim);font-size:11px;margin-right:8px;">Crews:</span>
 </div>
@@ -150,6 +183,23 @@ function agentColor(role) {
   return AGENT_COLORS[role];
 }
 
+// ── Agent personality tags (from backstory keywords) ──
+const PERSONALITY_TAGS = {
+  'strategy-manager': ['Strategy', 'Data-driven'],
+  'product-manager': ['Product', 'UX'],
+  'project-manager': ['Timeline', 'Scope'],
+  'fullstack-architect': ['Architecture', 'Schema'],
+  'backend-senior': ['Backend', 'API'],
+  'frontend-senior': ['Frontend', 'Components'],
+  'qa-engineer': ['QA', 'Testing'],
+  'infra-expert': ['Infra', 'CI/CD'],
+  'data-engineer': ['Data', 'Pipeline'],
+  'doc-secretary': ['Docs', 'Notion'],
+  'external-advisor': ['Devil\'s Advocate', 'Critical'],
+  'codegen-developer': ['Codegen', 'Multi-repo'],
+  'notion-editor': ['Notion', 'Block Edit'],
+};
+
 // ── State ──
 const state = {
   agents: {},
@@ -157,6 +207,7 @@ const state = {
   activeCrew: null,
   startTime: null,
   autoScroll: true,
+  agentStats: {},  // role → {tasks, tasksDone, tokens, errors, lastSpeech}
 };
 
 // ── Init ──
@@ -183,8 +234,11 @@ async function init() {
     el.className = 'desk';
     el.innerHTML = `<div class="role" title="${role}" style="color:${agentColor(role)}">${role}</div><div class="crew-tag">${crew}</div><div class="status-icon s-idle"></div><div class="speech"></div>`;
     desksEl.appendChild(el);
-    state.agents[role] = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.status-icon'), speech_el: el.querySelector('.speech') };
+    state.agents[role] = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.status-icon'), speech_el: el.querySelector('.speech'), agentId: id };
+    state.agentStats[role] = { tasks: 0, tasksDone: 0, tokens: 0, errors: 0, lastSpeech: '' };
   });
+
+  buildDashboard();
 
   const ctrlEl = document.getElementById('controls');
   crews.forEach(c => {
@@ -245,14 +299,23 @@ function handleEvent(ev) {
   if (cat === 'agent') {
     const a = findAgent(ev.agent);
     if (!a) return;
-    if (action === 'started') setAgentStatus(a, 'working');
+    const s = state.agentStats[a.role];
+    if (action === 'started') {
+      setAgentStatus(a, 'working');
+      if (s) s.tasks++;
+    }
     else if (action === 'completed') {
       setAgentStatus(a, 'speaking');
       a.speech = truncate(ev.payload?.text, 80);
       a.speech_el.textContent = a.speech;
+      if (s) { s.tasksDone++; s.lastSpeech = truncate(ev.payload?.text, 60); }
       setTimeout(() => setAgentStatus(a, 'idle'), 3000);
     }
-    else if (action === 'error') setAgentStatus(a, 'error');
+    else if (action === 'error') {
+      setAgentStatus(a, 'error');
+      if (s) s.errors++;
+    }
+    updateDashboard();
   }
 
   if (cat === 'tool') {
@@ -266,9 +329,12 @@ function handleEvent(ev) {
   if (cat === 'llm') {
     if (ev.payload?.tokens) {
       const t = ev.payload.tokens;
-      if (t.prompt) state.totalTokens += t.prompt;
-      if (t.completion) state.totalTokens += t.completion;
+      const total = (t.prompt || 0) + (t.completion || 0);
+      if (total) state.totalTokens += total;
+      // Track per-agent tokens
+      if (ev.agent) { const a = findAgent(ev.agent); if (a) { const s = state.agentStats[a.role]; if (s) s.tokens += total; } }
       updateTokens();
+      updateDashboard();
     }
   }
 }
@@ -418,6 +484,75 @@ function scrollToBottom() {
   list.scrollTop = list.scrollHeight;
   state.autoScroll = true;
   document.getElementById('scroll-btn').classList.remove('visible');
+}
+
+// ── Dashboard ──
+function buildDashboard() {
+  const container = document.getElementById('dash-cards');
+  container.innerHTML = '';
+  Object.values(state.agents).forEach(a => {
+    const tags = PERSONALITY_TAGS[a.agentId] || [];
+    const card = document.createElement('div');
+    card.className = 'dash-card';
+    card.id = `dc-${a.role.replace(/\s/g, '_')}`;
+    card.innerHTML = `
+      <div class="dc-header">
+        <div class="dc-dot" id="dcd-${a.role.replace(/\s/g, '_')}"></div>
+        <div class="dc-name" style="color:${agentColor(a.role)}">${shortName(a.role)}</div>
+      </div>
+      <div class="dc-tags">${tags.map(t => `<span class="dc-tag">${t}</span>`).join('')}</div>
+      <div class="dc-stats">
+        <div class="dc-stat"><span class="dc-stat-label">Tasks</span><div class="dc-bar"><div class="dc-bar-fill" id="dcb-tasks-${a.role.replace(/\s/g, '_')}" style="width:0%;background:var(--green)"></div></div><span class="dc-stat-val" id="dcv-tasks-${a.role.replace(/\s/g, '_')}">0/0</span></div>
+        <div class="dc-stat"><span class="dc-stat-label">Tokens</span><div class="dc-bar"><div class="dc-bar-fill" id="dcb-tokens-${a.role.replace(/\s/g, '_')}" style="width:0%;background:var(--accent)"></div></div><span class="dc-stat-val" id="dcv-tokens-${a.role.replace(/\s/g, '_')}">0</span></div>
+        <div class="dc-stat"><span class="dc-stat-label">Errors</span><div class="dc-bar"><div class="dc-bar-fill" id="dcb-errors-${a.role.replace(/\s/g, '_')}" style="width:0%;background:var(--red)"></div></div><span class="dc-stat-val" id="dcv-errors-${a.role.replace(/\s/g, '_')}">0</span></div>
+      </div>
+      <div class="dc-speech" id="dcs-${a.role.replace(/\s/g, '_')}"></div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function updateDashboard() {
+  let activeCount = 0;
+  const maxTokens = Math.max(1, ...Object.values(state.agentStats).map(s => s.tokens));
+  Object.values(state.agents).forEach(a => {
+    const s = state.agentStats[a.role];
+    if (!s) return;
+    const key = a.role.replace(/\s/g, '_');
+    const dot = document.getElementById(`dcd-${key}`);
+    if (dot) {
+      dot.className = 'dc-dot' + (a.status === 'error' ? ' error' : a.status !== 'idle' ? ' active' : '');
+      if (a.status !== 'idle') activeCount++;
+    }
+    const taskPct = s.tasks > 0 ? Math.round(s.tasksDone / s.tasks * 100) : 0;
+    const bTasks = document.getElementById(`dcb-tasks-${key}`);
+    if (bTasks) bTasks.style.width = taskPct + '%';
+    const vTasks = document.getElementById(`dcv-tasks-${key}`);
+    if (vTasks) vTasks.textContent = `${s.tasksDone}/${s.tasks}`;
+    const tokenPct = maxTokens > 0 ? Math.round(s.tokens / maxTokens * 100) : 0;
+    const bTokens = document.getElementById(`dcb-tokens-${key}`);
+    if (bTokens) bTokens.style.width = tokenPct + '%';
+    const vTokens = document.getElementById(`dcv-tokens-${key}`);
+    if (vTokens) vTokens.textContent = s.tokens > 1000 ? (s.tokens/1000).toFixed(1) + 'k' : s.tokens;
+    const errorPct = s.tasks > 0 ? Math.min(100, Math.round(s.errors / s.tasks * 100)) : 0;
+    const bErrors = document.getElementById(`dcb-errors-${key}`);
+    if (bErrors) bErrors.style.width = errorPct + '%';
+    const vErrors = document.getElementById(`dcv-errors-${key}`);
+    if (vErrors) vErrors.textContent = s.errors;
+    const speech = document.getElementById(`dcs-${key}`);
+    if (speech && s.lastSpeech) speech.textContent = s.lastSpeech;
+  });
+  const summary = document.getElementById('dash-summary');
+  if (summary) summary.textContent = `Active: ${activeCount}/${Object.keys(state.agents).length} | Total tokens: ${(state.totalTokens/1000).toFixed(1)}k`;
+}
+
+function toggleDashboard() {
+  const d = document.getElementById('dashboard');
+  const btn = document.getElementById('dash-toggle');
+  const isExpanded = d.classList.contains('expanded');
+  d.classList.toggle('expanded', !isExpanded);
+  d.classList.toggle('collapsed', isExpanded);
+  btn.textContent = isExpanded ? 'Expand' : 'Collapse';
 }
 
 function changeFontSize(delta) {
