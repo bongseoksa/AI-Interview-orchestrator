@@ -65,9 +65,10 @@ async function init() {
     el.className = 'agent-av';
     el.title = role;
     el.innerHTML = `<div class="av-circle" style="background:${color}">${initials}<span class="av-status"></span></div><div class="av-name">${shortName(role)}</div><div class="av-speech"></div>`;
+    el.onclick = () => openProfile(role);
     loungeEl.appendChild(el);
     state.agents[role] = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.av-status'), speech_el: el.querySelector('.av-speech'), agentId: id, zone: 'lounge' };
-    state.agentStats[role] = { tasks: 0, tasksDone: 0, tokens: 0, errors: 0, lastSpeech: '' };
+    state.agentStats[role] = { tasks: 0, tasksDone: 0, tokens: 0, errors: 0, lastSpeech: '', history: [] };
   });
 
   buildDashboard();
@@ -137,11 +138,12 @@ function handleEvent(ev) {
       setAgentStatus(a, 'speaking');
       a.speech = truncate(ev.payload?.text, 80);
       a.speech_el.textContent = a.speech;
-      if (s) { s.tasksDone++; s.lastSpeech = truncate(ev.payload?.text, 60); }
+      if (s) { s.tasksDone++; s.lastSpeech = truncate(ev.payload?.text, 60); s.history.push(truncate(ev.payload?.text, 120)); if (s.history.length > 20) s.history.shift(); }
       setTimeout(() => setAgentStatus(a, 'idle'), 3000);
     } else if (action === 'error') {
       setAgentStatus(a, 'error');
       if (s) s.errors++;
+      showErrorVignette();
     }
     updateDashboard();
   }
@@ -149,9 +151,9 @@ function handleEvent(ev) {
   if (cat === 'tool') {
     const a = findAgent(ev.agent);
     if (!a) return;
-    if (action === 'started') setAgentStatus(a, 'tool');
+    if (action === 'started') { setAgentStatus(a, 'tool'); flashToolHighlight(a); }
     else if (action === 'finished') setAgentStatus(a, 'working');
-    else if (action === 'error') setAgentStatus(a, 'error');
+    else if (action === 'error') { setAgentStatus(a, 'error'); showErrorVignette(); }
   }
 
   if (cat === 'llm') {
@@ -398,6 +400,68 @@ async function runCrew(name, btn) {
 
 function updateButtons(busy) {
   document.querySelectorAll('#controls button').forEach(b => { b.disabled = busy; if (!busy) b.classList.remove('running'); });
+}
+
+// ── Profile modal ──
+function openProfile(role) {
+  const a = state.agents[role];
+  if (!a) return;
+  const s = state.agentStats[role] || {};
+  const tags = PERSONALITY_TAGS[a.agentId] || [];
+  const color = agentColor(role);
+  const initials = shortName(role).slice(0, 2);
+  const historyHtml = (s.history || []).slice(-10).reverse().map(h => `<div class="pm-history-item">${escHtml(h)}</div>`).join('') || '<div class="pm-history-item" style="color:var(--dim)">No activity yet</div>';
+
+  document.getElementById('profile-modal').innerHTML = `
+    <button class="pm-close" onclick="closeModal()">&times;</button>
+    <div class="pm-header">
+      <div class="pm-avatar" style="background:${color}">${initials}</div>
+      <div class="pm-info">
+        <h4 style="color:${color}">${escHtml(shortName(role))}</h4>
+        <div class="pm-crew">${escHtml(a.crew)} | ${a.status}</div>
+      </div>
+    </div>
+    <div class="pm-section">
+      <h5>Role</h5>
+      <p>${escHtml(role)}</p>
+    </div>
+    <div class="pm-section">
+      <h5>Tags</h5>
+      <div class="pm-tags">${tags.map(t => `<span class="pm-tag">${t}</span>`).join('') || '<span style="color:var(--dim);font-size:11px">None</span>'}</div>
+    </div>
+    <div class="pm-section">
+      <h5>Stats</h5>
+      <div class="pm-stat-row">
+        <span class="pm-stat">Tasks: <b>${s.tasksDone || 0}/${s.tasks || 0}</b></span>
+        <span class="pm-stat">Tokens: <b>${s.tokens > 1000 ? (s.tokens/1000).toFixed(1) + 'k' : s.tokens || 0}</b></span>
+        <span class="pm-stat">Errors: <b>${s.errors || 0}</b></span>
+      </div>
+    </div>
+    <div class="pm-section">
+      <h5>Recent Activity</h5>
+      <div class="pm-history">${historyHtml}</div>
+    </div>
+  `;
+  document.getElementById('modal-overlay').classList.add('visible');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('visible');
+}
+
+// ── Tool highlight flash on avatar ──
+function flashToolHighlight(a) {
+  a.desk_el.classList.add('tool-highlight');
+  setTimeout(() => a.desk_el.classList.remove('tool-highlight'), 600);
+}
+
+// ── Error vignette ──
+function showErrorVignette() {
+  const v = document.getElementById('error-vignette');
+  v.classList.remove('visible');
+  void v.offsetWidth; // reflow to restart animation
+  v.classList.add('visible');
+  setTimeout(() => v.classList.remove('visible'), 2000);
 }
 
 init();
