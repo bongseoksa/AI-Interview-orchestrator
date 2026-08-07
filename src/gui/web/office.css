@@ -84,12 +84,13 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #meeting-info .mi-crew { font-weight: 700; color: var(--text); font-size: 12px; margin-bottom: 4px; }
 #meeting-members { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
 
-/* ── Control bar ── */
-#controls { padding: 8px 16px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-#controls button { background: var(--surface2); color: var(--text); border: 1px solid var(--dim); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: inherit; transition: all 0.2s; }
-#controls button:hover { background: var(--accent); border-color: var(--accent); }
-#controls button:disabled { opacity: 0.3; cursor: not-allowed; }
-#controls button.running { background: var(--orange); border-color: var(--orange); color: #000; }
+/* ── Control bar (프리셋) ── 입력창과 같은 radius 계열, 보조 액션이라 외곽선만 */
+#controls { padding: 8px 16px 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#controls .ctrl-label { color: var(--dim); font-size: 11px; margin-right: 4px; }
+#controls button { background: transparent; color: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s; }
+#controls button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+#controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+#controls button.running { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
 /* ── Messenger (right) ── */
 #messenger { width: clamp(380px, 34vw, 560px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -175,17 +176,22 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #error-vignette.visible { display: block; animation: vignette-fade 2s ease-out forwards; }
 @keyframes vignette-fade { 0% { opacity: 1; } 100% { opacity: 0; } }
 
-/* ── 지시 채팅 (07 §10) ── */
-#composer { position: relative; display: flex; gap: 8px; align-items: flex-end; padding: 10px 12px 12px; border-top: 1px solid var(--border); background: var(--surface); }
-#composer textarea { flex: 1; resize: none; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-family: inherit; font-size: 13px; line-height: 1.55; max-height: 132px; transition: border-color 0.15s, box-shadow 0.15s; }
+/* ── 지시 채팅 (07 §10) ──
+   메신저 패널(≈480px) 안에 있던 입력창을 하단 전폭으로 뺐다. 주 인터랙션인데
+   가장 좁은 자리에서 긴 한국어 지시를 쳐야 했다. */
+#composer { position: relative; display: flex; gap: 10px; align-items: flex-end; padding: 10px 16px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+#composer textarea { flex: 1; resize: none; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; font-family: inherit; font-size: 13px; line-height: 1.55; min-height: 42px; max-height: 168px; transition: border-color 0.15s, box-shadow 0.15s; }
 #composer textarea::placeholder { color: var(--dim); }
 #composer textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-#composer button { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
+
+/* 프리셋 바 버튼과 같은 계열(같은 radius·높이)이되, 주 액션이라 채워서 구분한다 */
+#composer button { display: flex; align-items: center; gap: 7px; height: 42px; background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 10px; padding: 0 16px; font-size: 13px; font-weight: 600; font-family: inherit; cursor: pointer; transition: opacity 0.15s; white-space: nowrap; }
 #composer button:hover:not(:disabled) { opacity: 0.88; }
 #composer button:disabled { opacity: 0.4; cursor: default; }
+#composer .cs-hint { font-size: 10px; font-weight: 500; opacity: 0.7; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; line-height: 15px; }
 
 /* @멘션 자동완성 — agent_id를 외우지 않아도 되게 한다 */
-#mention-pop { position: absolute; left: 12px; right: 12px; bottom: calc(100% - 4px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); max-height: 240px; overflow-y: auto; display: none; z-index: 30; padding: 4px; }
+#mention-pop { position: absolute; left: 16px; width: min(420px, 60vw); bottom: calc(100% - 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); max-height: 260px; overflow-y: auto; display: none; z-index: 30; padding: 4px; }
 #mention-pop.visible { display: block; }
 .mp-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
 .mp-item.sel, .mp-item:hover { background: var(--accent-soft); }
@@ -228,6 +234,3 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #msg-empty .me-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
 #msg-empty p { font-size: 12px; line-height: 1.7; margin-bottom: 14px; }
 #msg-empty b { color: var(--text); font-weight: 600; }
-#msg-empty .me-examples { display: flex; flex-direction: column; gap: 6px; }
-#msg-empty .me-examples button { text-align: left; background: var(--bg); border: 1px solid var(--border); color: var(--dim); border-radius: 8px; padding: 8px 11px; font-size: 12px; font-family: inherit; cursor: pointer; line-height: 1.45; transition: border-color 0.15s, color 0.15s; }
-#msg-empty .me-examples button:hover { border-color: var(--accent); color: var(--text); }

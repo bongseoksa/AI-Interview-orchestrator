@@ -468,13 +468,6 @@ async function sendMessage() {
   }
 }
 
-function fillExample(btn) {
-  const input = document.getElementById('composer-input');
-  input.value = btn.textContent.trim();
-  input.dispatchEvent(new Event('input'));
-  input.focus();
-}
-
 function initComposer() {
   const input = document.getElementById('composer-input');
   input.addEventListener('keydown', e => {
