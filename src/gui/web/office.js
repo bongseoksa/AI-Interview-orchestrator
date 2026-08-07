@@ -1,13 +1,20 @@
 const WS_URL = `ws://${location.host}/ws/office`;
 
 // ── Agent color map ──
+// 랜덤 HSL(채도 60/명도 65)은 형광 초록·분홍을 뽑아내 따뜻한 뉴트럴 팔레트와 충돌했다.
+// 채도를 낮춘 고정 팔레트에서 해시로 고른다 — 색은 구분용이지 장식이 아니다.
+const AGENT_PALETTE = [
+  '#C2704F', '#8B7355', '#6E8B74', '#7A7FA6', '#A86B7E',
+  '#5F8A8B', '#A88A4A', '#7C6B94', '#96745C', '#5E7F9E',
+  '#8E7B4F', '#6B8E7B', '#9C6F6F',
+];
 const AGENT_COLORS = {};
 function agentColor(role) {
   if (!role) return 'var(--dim)';
   if (AGENT_COLORS[role]) return AGENT_COLORS[role];
   let hash = 0;
   for (let i = 0; i < role.length; i++) hash = role.charCodeAt(i) + ((hash << 5) - hash);
-  AGENT_COLORS[role] = `hsl(${Math.abs(hash) % 360}, 60%, 65%)`;
+  AGENT_COLORS[role] = AGENT_PALETTE[Math.abs(hash) % AGENT_PALETTE.length];
   return AGENT_COLORS[role];
 }
 
@@ -40,6 +47,7 @@ const CREW_MAP = {
 // ── State ──
 const state = {
   agents: {},
+  roster: [],   // /api/agents 원본 — @멘션 자동완성용
   totalTokens: 0,
   activeCrew: null,
   startTime: null,
@@ -54,6 +62,7 @@ async function init() {
     fetch('/api/crews').then(r => r.json()),
   ]);
 
+  state.roster = agents.filter(a => a.agent_id);
   const loungeEl = document.getElementById('lounge-agents');
   agents.forEach(a => {
     const id = a.agent_id || a.role;
@@ -92,7 +101,7 @@ async function init() {
   });
 
   initComposer();
-  refreshReviewBadge();
+  restorePendingReviews();
   refreshQueue();
   connectWS();
 }
@@ -177,6 +186,7 @@ function handleEvent(ev) {
 // ── Messenger rendering ──
 function addMessage(ev, cat, action) {
   const list = document.getElementById('msg-list');
+  document.getElementById('msg-empty')?.remove();
 
   if (cat === 'crew') {
     if (action === 'started') {
@@ -231,11 +241,25 @@ function addMessage(ev, cat, action) {
 }
 
 // ── Message factories ──
+// 발언은 500자에서 잘려 회의 내용을 화면에서 읽을 수 없었다. 접어두고 펼치게 한다.
+const CLAMP_AT = 400;
+
 function createSpeechBubble(agent, text) {
   const el = document.createElement('div');
   el.className = 'msg speech';
-  el.innerHTML = `<div class="name" style="color:${agentColor(agent)}">${escHtml(shortName(agent))}</div><div class="bubble">${escHtml(truncate(text, 500))}</div>`;
+  el.innerHTML = `<div class="name" style="color:${agentColor(agent)}">${escHtml(shortName(agent))}</div>
+    <div class="bubble${text.length > CLAMP_AT ? ' clamped' : ''}"><div class="bubble-body">${escHtml(text)}</div>${
+      text.length > CLAMP_AT ? `<button class="bubble-more" onclick="toggleClamp(this)">전문 보기 (${text.length.toLocaleString()}자)</button>` : ''
+    }</div>`;
   return el;
+}
+
+function toggleClamp(btn) {
+  const bubble = btn.parentElement;
+  const clamped = bubble.classList.toggle('clamped');
+  btn.textContent = clamped
+    ? `전문 보기 (${bubble.querySelector('.bubble-body').textContent.length.toLocaleString()}자)`
+    : '접기';
 }
 
 function createThinkingBubble(agent, text) {
@@ -444,15 +468,89 @@ async function sendMessage() {
   }
 }
 
+function fillExample(btn) {
+  const input = document.getElementById('composer-input');
+  input.value = btn.textContent.trim();
+  input.dispatchEvent(new Event('input'));
+  input.focus();
+}
+
 function initComposer() {
   const input = document.getElementById('composer-input');
   input.addEventListener('keydown', e => {
+    if (mention.open && handleMentionKey(e)) return;
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(); }
   });
   input.addEventListener('input', () => {
     input.style.height = 'auto';
-    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    input.style.height = Math.min(input.scrollHeight, 132) + 'px';
+    updateMentionPopup();
   });
+  input.addEventListener('blur', () => setTimeout(closeMention, 150));
+}
+
+// ── @멘션 자동완성 ──
+// agent_id를 외워야 @멘션을 쓸 수 있었다. 로스터가 이미 /api/agents로 오므로 그걸 쓴다.
+const mention = { open: false, items: [], sel: 0, start: -1 };
+const MENTION_RE = /@([a-zA-Z0-9-]*)$/;
+
+function updateMentionPopup() {
+  const input = document.getElementById('composer-input');
+  const m = MENTION_RE.exec(input.value.slice(0, input.selectionStart));
+  if (!m) return closeMention();
+
+  const q = m[1].toLowerCase();
+  mention.items = state.roster.filter(a =>
+    !q || a.agent_id.toLowerCase().includes(q) || (a.role || '').toLowerCase().includes(q));
+  if (!mention.items.length) return closeMention();
+
+  mention.open = true;
+  mention.sel = 0;
+  mention.start = input.selectionStart - m[0].length;
+  renderMentionPopup();
+}
+
+function renderMentionPopup() {
+  const pop = document.getElementById('mention-pop');
+  pop.innerHTML = mention.items.map((a, i) => {
+    const color = agentColor(a.role || a.agent_id);
+    return `<div class="mp-item${i === mention.sel ? ' sel' : ''}" onmousedown="event.preventDefault();pickMention(${i})">
+      <div class="mp-dot" style="background:${color}">${escHtml(shortName(a.role || a.agent_id).slice(0,2))}</div>
+      <div class="mp-text"><div class="mp-role">${escHtml(shortName(a.role || a.agent_id))}</div><div class="mp-id">@${escHtml(a.agent_id)}</div></div>
+      ${a.writer ? '<span class="mp-writer">쓰기</span>' : ''}
+    </div>`;
+  }).join('');
+  pop.classList.add('visible');
+  pop.querySelector('.mp-item.sel')?.scrollIntoView({block: 'nearest'});
+}
+
+function handleMentionKey(e) {
+  if (e.key === 'ArrowDown') { mention.sel = (mention.sel + 1) % mention.items.length; renderMentionPopup(); }
+  else if (e.key === 'ArrowUp') { mention.sel = (mention.sel - 1 + mention.items.length) % mention.items.length; renderMentionPopup(); }
+  else if (e.key === 'Enter' || e.key === 'Tab') { pickMention(mention.sel); }
+  else if (e.key === 'Escape') { closeMention(); }
+  else return false;
+  e.preventDefault();
+  return true;
+}
+
+function pickMention(i) {
+  const a = mention.items[i];
+  if (!a) return;
+  const input = document.getElementById('composer-input');
+  const before = input.value.slice(0, mention.start);
+  const after = input.value.slice(input.selectionStart);
+  const insert = `@${a.agent_id} `;
+  input.value = before + insert + after;
+  const pos = before.length + insert.length;
+  input.setSelectionRange(pos, pos);
+  closeMention();
+  input.focus();
+}
+
+function closeMention() {
+  mention.open = false;
+  document.getElementById('mention-pop').classList.remove('visible');
 }
 
 // ── 확인함 (07 §7) ──
@@ -463,10 +561,15 @@ function createUserBubble(text) {
   return el;
 }
 
+// 라우터 판정문은 "[회의] 안건 — id, id" 형식. 모드를 배지로 떼어내 색으로 구분한다.
 function createRouterMsg(text) {
   const el = document.createElement('div');
-  el.className = 'msg router';
-  el.innerHTML = `<div class="bubble">${escHtml(text)}</div>`;
+  const m = /^\[(회의|작업)\]\s*(.*)$/s.exec(text);
+  const kind = m ? (m[1] === '회의' ? 'meeting' : 'task') : 'ask';
+  el.className = `msg router ${kind}`;
+  el.innerHTML = `<div class="bubble">${
+    m ? `<span class="rt-badge">${m[1]}</span>${escHtml(m[2])}` : escHtml(text)
+  }</div>`;
   return el;
 }
 
@@ -527,6 +630,22 @@ async function refreshReviewBadge() {
   const items = await fetch('/api/review').then(r => r.json()).catch(() => []);
   const h = document.querySelector('#messenger-header h3');
   if (h) h.textContent = items.length ? `Office Messenger (확인함 ${items.length})` : 'Office Messenger';
+  return items;
+}
+
+// 승인 카드는 review.pending WS 이벤트로만 그려져, 새로고침하면 사라졌다.
+// 대기 항목은 서버(파일 큐)에 남아 있는데 승인할 UI가 없어지는 상태 — 접속 시 복원한다.
+async function restorePendingReviews() {
+  const items = await refreshReviewBadge();
+  if (!items.length) return;
+  const list = document.getElementById('msg-list');
+  document.getElementById('msg-empty')?.remove();
+  items.forEach(it => {
+    if (document.getElementById(`rc-${it.run_id}`)) return;
+    list.appendChild(createSystemMsg(`승인 대기 — ${it.date}`));
+    list.appendChild(createReviewCard(it.run_id, it.agenda, it.docs || []));
+  });
+  scrollToBottom();
 }
 
 // ── Profile modal ──

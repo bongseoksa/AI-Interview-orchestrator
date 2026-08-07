@@ -31,19 +31,31 @@
         <button onclick="changeFontSize(1)">A+</button>
       </div>
     </div>
-    <div id="msg-list"></div>
+    <div id="msg-list">
+      <div id="msg-empty">
+        <div class="me-title">사내 메신저처럼 지시하세요</div>
+        <p>담당자를 정하면 <b>작업</b>, 여러 명을 부르면 <b>회의</b>가 됩니다.<br>
+           회의가 끝나면 회의록과 결정사항 초안이 올라오고, 승인하면 노션에 기록됩니다.</p>
+        <div class="me-examples">
+          <button onclick="fillExample(this)">@qa-engineer server 레포 테스트 전략 정리해줘</button>
+          <button onclick="fillExample(this)">PM이랑 아키텍트 불러서 M1 서비스 LLM 정하는 회의 해줘</button>
+          <button onclick="fillExample(this)">@codegen-developer server 레포에 /v1/ping 엔드포인트 만들어줘</button>
+        </div>
+      </div>
+    </div>
     <button id="scroll-btn" onclick="scrollToBottom()">Latest</button>
     <div id="composer">
-      <textarea id="composer-input" rows="1" placeholder="지시를 입력하세요 (@멘션으로 담당 지정, Shift+Enter 줄바꿈)"></textarea>
+      <div id="mention-pop"></div>
+      <textarea id="composer-input" rows="2" placeholder="지시를 입력하세요.  @ 로 담당자 지정"></textarea>
       <button id="composer-send" onclick="sendMessage()">보내기</button>
     </div>
   </div>
 </div>
 
-<div id="dashboard" class="expanded">
+<div id="dashboard" class="collapsed">
   <div id="dash-header" onclick="toggleDashboard()">
     <h3>Agent Dashboard <span id="dash-summary" class="dash-summary"></span></h3>
-    <button class="toggle-btn" id="dash-toggle">Collapse</button>
+    <button class="toggle-btn" id="dash-toggle">Expand</button>
   </div>
   <div id="dash-cards"></div>
 </div>

@@ -34,7 +34,12 @@ async def _bind_bus() -> None:
 
 @app.get("/api/agents")
 def get_agents() -> list[dict[str, Any]]:
-    return load_roster()
+    from src.gui.dispatch import WRITER_IDS
+
+    roster = load_roster()
+    for a in roster:  # 프론트 멘션 목록에서 '쓰기 가능'을 표시하려면 필요하다
+        a["writer"] = a.get("agent_id") in WRITER_IDS
+    return roster
 
 
 @app.get("/api/crews")

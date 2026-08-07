@@ -115,6 +115,45 @@ def t_meeting_appends_secretary():
     assert len(crew.tasks[-1].context) == 3, "서기 Task는 앞 발언 전부를 context로 받는다"
 
 
+def t_codegen_can_write():
+    crew, is_meeting = D.build_crew(["codegen-developer"], "server 레포에 헬스체크 테스트 추가")
+    assert is_meeting is False
+    tools = {t.name for t in crew.agents[0].tools}
+    assert "write_file" in tools, f"코드젠은 쓰기 권한이 있어야 한다: {tools}"
+    desc = crew.tasks[0].description
+    assert "write_file을 호출하라" in desc, "의견 태스크가 아니라 실행 태스크를 받아야 한다"
+    assert "AI-Interview-server" in desc, "대상 레포 경로를 알려줘야 한다"
+
+
+def t_instruction_reaches_task():
+    """회귀: agenda가 40자로 잘려 지시 원문이 사라지면 에이전트가 일을 못 한다."""
+    full = ("AI-Interview-server 레포의 app/api/v1/endpoints/ 아래에 GET /v1/ping 을 "
+            "반환하는 최소 엔드포인트 파일 ping.py 를 기존 health.py 스타일에 맞춰 만들어줘")
+    agenda = D.trim(full)
+    assert len(agenda) <= 40 and "ping.py" not in agenda, "전제: agenda만으론 지시가 소실된다"
+
+    for aid in ("codegen-developer", "qa-engineer"):
+        desc = D.build_crew([aid], agenda, full)[0].tasks[0].description
+        assert full in desc, f"{aid}: 지시 원문이 태스크에 통째로 들어가야 한다"
+        assert agenda in desc, f"{aid}: 안건 제목도 함께 보여야 한다"
+
+
+def t_others_are_read_only():
+    for aid in ("qa-engineer", "product-manager", "doc-secretary"):
+        crew, _ = D.build_crew([aid], "x")
+        tools = {t.name for t in crew.agents[0].tools}
+        assert "write_file" not in tools, f"{aid}에 쓰기 권한이 새면 안 된다: {tools}"
+        assert "read_file" in tools
+
+
+def t_writer_in_meeting_keeps_role():
+    # 회의에 섞여도 코드젠은 실행 태스크, 나머지는 의견 태스크
+    crew, is_meeting = D.build_crew(["fullstack-architect", "codegen-developer"], "M1 스캐폴딩")
+    assert is_meeting is True
+    assert "먼저 발언한다" in crew.tasks[0].description, "논의 태스크"
+    assert "write_file을 호출하라" in crew.tasks[1].description, "실행 태스크"
+
+
 def t_bad_ids():
     try:
         D.build_crew(["없는놈"], "x")
@@ -125,21 +164,52 @@ def t_bad_ids():
 
 # ── 4. 회의록 조립 — LLM 없이 원문 무절단 (D8) ──
 
+class _Out:
+    def __init__(self, raw):
+        self.raw = raw
+        self.agent = None
+
+
+def _result(*raws):
+    return type("R", (), {"tasks_output": [_Out(r) for r in raws]})()
+
+
 def t_transcript():
     long_text = "가" * 3000
-
-    class Out:
-        def __init__(self, raw):
-            self.raw = raw
-            self.agent = None
-
-    class Result:
-        tasks_output = [Out(long_text), Out("두번째")]
-
-    md = D.build_transcript("M1 선정", ["product-manager", "infra-expert"], Result())
+    md = D.build_transcript("M1 선정", ["product-manager", "infra-expert"],
+                            _result(long_text, "두번째"))
     assert "# M1 선정" in md and "## 발언 전문" in md
     assert long_text in md, "저장은 무절단 (D8)"
     assert "프로덕트 매니저" in md and "인프라" in md
+
+
+def t_transcript_speaker_not_buried():
+    """회귀: 발언 본문의 ### 가 '### 화자'와 같은 레벨이라 화자 구분이 묻혔다."""
+    body = "### 1. 근거\n내용\n#### 세부\n## 상위\n# 최상위"
+    md = D.build_transcript("안건", ["product-manager", "infra-expert"], _result(body, body))
+    speakers = [l for l in md.splitlines() if l.startswith("### ")]
+    assert len(speakers) == 2, f"화자 헤딩은 정확히 2개여야 한다: {speakers}"
+    assert "프로덕트 매니저" in speakers[0] and "인프라" in speakers[1]
+    assert "#### 1. 근거" in md and "#### 최상위" in md, "본문 제목은 h4 이하로 내려간다"
+    assert "내용" in md, "본문 텍스트는 그대로"
+
+
+def t_relay_forbids_echo():
+    """회귀: 지시가 모두 같으면 뒤 발언자가 앞 발언을 복제한다."""
+    crew, _ = D.build_crew(["product-manager", "external-advisor"], "안건", "지시 원문")
+    first, second = crew.tasks[0].description, crew.tasks[1].description
+    assert "먼저 발언한다" in first and "다시 쓰지 마라" not in first
+    assert "이미 나온 논거를 다시 쓰지 마라" in second
+    assert "프로덕트 매니저" in first and "외부인사" in second, "각자 자기 역할로 발언해야 한다"
+
+
+def t_all_agent_yaml_parses():
+    """회귀: external-advisor.yaml이 깨져 페르소나 없는 빈 에이전트가 회의에 들어갔다."""
+    broken = [a["agent_id"] for a in D.load_roster() if a.get("_broken")]
+    assert not broken, f"YAML 파싱 실패로 페르소나가 없는 에이전트: {broken}"
+    for a in D.load_roster():
+        assert a.get("goal"), f"{a['agent_id']}: goal 없음"
+        assert a.get("backstory"), f"{a['agent_id']}: backstory 없음"
 
 
 # ── 5. 확인함 왕복 (07 §7) ──
