@@ -48,6 +48,16 @@ src/
   tools/
     file_tools.py     # 파일 조작 도구 (크로스 레포 읽기/쓰기, 경로 안전성 검증)
     notion_tools.py   # Notion REST API 도구 (읽기/쓰기/검색/수정/삭제/삽입)
+  gui/
+    events.py         # OfficeEvent — 이벤트 단일 포맷
+    bus.py            # WebSocket fan-out
+    listener.py       # CrewAI 이벤트 캡처 (콘솔 + JSONL + WS)
+    runner.py         # 순차 실행 큐 (ThreadPoolExecutor(1), 거절 없음)
+    dispatch.py       # 지시 채팅 — 라우터 + 임의 조합 회의 + doc_name/trim
+    review.py         # 확인함 — 파일 기반 승인 큐 (노션 반영은 승인 후)
+    server.py         # FastAPI (REST + WS + 정적)
+    roster.py         # 에이전트 로스터
+    web/              # SPA (index.html, office.js, office.css)
   crews/
     research/         # Phase 1: 시장 조사 — 전략 관리자
     planning/         # Phase 2-4: 기획 — PM + PjM
@@ -105,6 +115,11 @@ python main.py notion insert <페이지> <기준블록ID> "내용"  # 블록 뒤
 python main.py notion-edit <페이지> "편집 지시"
 # 예: python main.py notion-edit 의사결정 "Step 4 상태를 완료로 변경"
 # 예: python main.py notion-edit 기획서 "카테고리 수를 9개에서 10개로 수정"
+
+# === 에이전트 사무실 GUI + 지시 채팅 ===
+python main.py gui             # 사무실 GUI 기동 (http://127.0.0.1:8765)
+                               # 메신저 하단 입력창에 사내 메신저처럼 지시한다.
+                               # 스크립트(scripts/design_*.py)를 짤 필요가 없다.
 
 # === 산출물 관리 ===
 python main.py artifacts       # 산출물 레지스트리 동기화 (로컬 → 노션)

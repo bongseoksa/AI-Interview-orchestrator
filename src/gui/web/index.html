@@ -12,6 +12,7 @@
   <h1>AI Interview Office</h1>
   <span class="stat" id="timer"></span>
   <span class="stat" id="tokens"></span>
+  <span class="stat" id="queue"></span>
   <span class="stat" id="conn-status">connecting...</span>
   <button onclick="toggleTheme()" style="margin-left:auto;background:none;border:1px solid var(--dim);color:var(--dim);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;font-family:inherit" id="theme-btn">Light</button>
 </div>
@@ -32,6 +33,10 @@
     </div>
     <div id="msg-list"></div>
     <button id="scroll-btn" onclick="scrollToBottom()">Latest</button>
+    <div id="composer">
+      <textarea id="composer-input" rows="1" placeholder="지시를 입력하세요 (@멘션으로 담당 지정, Shift+Enter 줄바꿈)"></textarea>
+      <button id="composer-send" onclick="sendMessage()">보내기</button>
+    </div>
   </div>
 </div>
 

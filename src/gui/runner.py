@@ -29,12 +29,16 @@ class RunSession:
 
 
 class CrewRunner:
-    """순차 실행 — 한 번에 하나만 (§8-4)."""
+    """순차 실행 — ThreadPoolExecutor(1)이 곧 큐다 (§8-4, 07 §3).
+
+    거절하지 않는다. 메신저처럼 지시가 쌓이고 순서대로 처리된다.
+    """
 
     def __init__(self) -> None:
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="crew")
         self._lock = threading.Lock()
         self._current: RunSession | None = None
+        self._pending = 0
 
     @property
     def current(self) -> RunSession | None:
@@ -44,14 +48,20 @@ class CrewRunner:
     def is_busy(self) -> bool:
         return self._current is not None and self._current.status == RunStatus.RUNNING
 
-    def run(self, crew_name: str, func: Callable[[], Any]) -> RunSession:
+    @property
+    def queued(self) -> int:
+        """대기 중(아직 시작 안 한) 지시 수."""
+        return self._pending
+
+    def run(self, crew_name: str, func: Callable[[], Any], run_id: str = "") -> RunSession:
+        session = RunSession(run_id=run_id, crew=crew_name)
         with self._lock:
-            if self.is_busy:
-                raise RuntimeError(f"이미 실행 중: {self._current.crew}")  # type: ignore[union-attr]
-            session = RunSession(run_id="", crew=crew_name)
-            self._current = session
+            self._pending += 1
 
         def _work() -> None:
+            with self._lock:
+                self._pending -= 1
+                self._current = session  # 큐에서 꺼내진 시점이 곧 current
             session.status = RunStatus.RUNNING
             session.started_at = datetime.now()
             try:

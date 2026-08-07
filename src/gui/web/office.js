@@ -91,6 +91,9 @@ async function init() {
     document.getElementById('scroll-btn').classList.toggle('visible', !atBottom);
   });
 
+  initComposer();
+  refreshReviewBadge();
+  refreshQueue();
   connectWS();
 }
 
@@ -156,6 +159,9 @@ function handleEvent(ev) {
     else if (action === 'error') { setAgentStatus(a, 'error'); showErrorVignette(); }
   }
 
+  if (cat === 'review' && action === 'pending') refreshReviewBadge();
+  if (cat === 'router' || (cat === 'crew' && action !== 'started')) refreshQueue();
+
   if (cat === 'llm') {
     if (ev.payload?.tokens) {
       const t = ev.payload.tokens;
@@ -199,6 +205,16 @@ function addMessage(ev, cat, action) {
       list.appendChild(createSystemMsg(`${shortName(ev.agent)} uses ${ev.tool || 'tool'}`));
     } else if (action === 'error') {
       list.appendChild(createErrorBubble(ev.agent, `Tool ${ev.tool}: ${ev.payload?.error || 'error'}`));
+    }
+  } else if (cat === 'user') {
+    list.appendChild(createUserBubble(ev.payload?.text || ''));
+  } else if (cat === 'router') {
+    list.appendChild(createRouterMsg(ev.payload?.text || ''));
+  } else if (cat === 'review') {
+    if (action === 'pending') {
+      let p = {};
+      try { p = JSON.parse(ev.payload?.text || '{}'); } catch (_) {}
+      list.appendChild(createReviewCard(ev.run_id, p.agenda || '', p.docs || []));
     }
   } else if (cat === 'task') {
     if (action === 'started') {
@@ -389,17 +405,128 @@ function changeFontSize(delta) {
   document.documentElement.style.setProperty('--msg-font-size', next + 'px');
 }
 
-// ── Crew execution ──
+// ── Crew execution ── (큐가 열려 있으므로 실행 중에도 버튼을 막지 않는다 — 07 §3)
 async function runCrew(name, btn) {
   const res = await fetch(`/api/run/${name}`, {method:'POST'});
   const data = await res.json();
   if (data.error) { alert(data.error); return; }
-  updateButtons(true);
   btn.classList.add('running');
 }
 
 function updateButtons(busy) {
-  document.querySelectorAll('#controls button').forEach(b => { b.disabled = busy; if (!busy) b.classList.remove('running'); });
+  if (!busy) document.querySelectorAll('#controls button.running').forEach(b => b.classList.remove('running'));
+}
+
+// ── 지시 채팅 (07 §10) ──
+async function sendMessage() {
+  const input = document.getElementById('composer-input');
+  const btn = document.getElementById('composer-send');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = ''; input.style.height = 'auto';
+  btn.disabled = true; btn.textContent = '라우팅...';
+  try {
+    const res = await fetch('/api/message', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text}),
+    });
+    const data = await res.json();
+    // 성공/되묻기 모두 WS(user.message / router.decided)로 화면에 찍힌다.
+    if (!res.ok) alert(`전송 실패: ${res.status}`);
+    else if (data.ask) input.value = text;  // 되물었으면 원문을 되돌려 수정하게 둔다
+  } catch (e) {
+    alert(`전송 실패: ${e}`);
+    input.value = text;
+  } finally {
+    btn.disabled = false; btn.textContent = '보내기';
+    input.focus();
+  }
+}
+
+function initComposer() {
+  const input = document.getElementById('composer-input');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendMessage(); }
+  });
+  input.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  });
+}
+
+// ── 확인함 (07 §7) ──
+function createUserBubble(text) {
+  const el = document.createElement('div');
+  el.className = 'msg user';
+  el.innerHTML = `<div class="bubble">${escHtml(text)}</div>`;
+  return el;
+}
+
+function createRouterMsg(text) {
+  const el = document.createElement('div');
+  el.className = 'msg router';
+  el.innerHTML = `<div class="bubble">${escHtml(text)}</div>`;
+  return el;
+}
+
+function createReviewCard(runId, agenda, docs) {
+  const el = document.createElement('div');
+  el.className = 'msg review-card';
+  el.id = `rc-${runId}`;
+  el.innerHTML = `
+    <div class="rc-title">회의 종료 — 보고서 초안 준비됨</div>
+    <div class="rc-docs">${docs.map(d => escHtml(d.title)).join('<br>')}</div>
+    <div class="rc-actions">
+      <button onclick="previewReview('${runId}')">미리보기</button>
+      <button class="primary" onclick="resolveReview('${runId}','approve')">노션 반영</button>
+      <button class="danger" onclick="resolveReview('${runId}','reject')">반려</button>
+    </div>`;
+  return el;
+}
+
+async function previewReview(runId) {
+  const data = await fetch(`/api/review/${runId}`).then(r => r.json());
+  if (data.error) { alert(data.error); return; }
+  document.getElementById('profile-modal').id = 'preview-modal';
+  document.getElementById('preview-modal').innerHTML = `
+    <button class="pm-close" onclick="closePreview()">&times;</button>
+    <h4>${escHtml(data.agenda)}</h4>
+    ${data.docs.map(d => `<h5>${escHtml(d.title)}</h5><pre>${escHtml(d.content || '')}</pre>`).join('')}`;
+  document.getElementById('modal-overlay').classList.add('visible');
+}
+
+function closePreview() {
+  document.getElementById('modal-overlay').classList.remove('visible');
+  const m = document.getElementById('preview-modal');
+  if (m) m.id = 'profile-modal';
+}
+
+async function resolveReview(runId, action) {
+  const card = document.getElementById(`rc-${runId}`);
+  if (action === 'reject' && !confirm('초안을 삭제합니다. 계속할까요?')) return;
+  card?.querySelectorAll('button').forEach(b => b.disabled = true);
+  const data = await fetch(`/api/review/${runId}/${action}`, {method:'POST'}).then(r => r.json());
+  if (data.ok) {
+    card.querySelector('.rc-actions').innerHTML =
+      `<span style="color:var(--dim);font-size:11px">${action === 'approve' ? '노션 반영 완료' : '반려됨'}</span>`;
+  } else {
+    alert(`실패: ${JSON.stringify(data.results || data.error)}`);
+    card?.querySelectorAll('button').forEach(b => b.disabled = false);
+  }
+  refreshReviewBadge();
+}
+
+async function refreshQueue() {
+  const s = await fetch('/api/status').then(r => r.json()).catch(() => null);
+  const el = document.getElementById('queue');
+  if (el && s) el.textContent = s.queued ? `대기 ${s.queued}건` : '';
+}
+
+async function refreshReviewBadge() {
+  const items = await fetch('/api/review').then(r => r.json()).catch(() => []);
+  const h = document.querySelector('#messenger-header h3');
+  if (h) h.textContent = items.length ? `Office Messenger (확인함 ${items.length})` : 'Office Messenger';
 }
 
 // ── Profile modal ──
