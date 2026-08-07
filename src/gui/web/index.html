@@ -39,6 +39,13 @@
       </div>
     </div>
     <button id="scroll-btn" onclick="scrollToBottom()">Latest</button>
+    <div id="composer">
+      <div id="mention-pop"></div>
+      <textarea id="composer-input" rows="1" placeholder="지시를 입력하세요.  @ 로 담당자를 지정합니다."></textarea>
+      <button id="composer-send" onclick="sendMessage()">
+        <span class="cs-label">보내기</span><span class="cs-hint">Enter</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -52,14 +59,6 @@
 
 <div id="controls">
   <span class="ctrl-label">프리셋</span>
-</div>
-
-<div id="composer">
-  <div id="mention-pop"></div>
-  <textarea id="composer-input" rows="1" placeholder="지시를 입력하세요.  @ 로 담당자를 지정합니다."></textarea>
-  <button id="composer-send" onclick="sendMessage()">
-    <span class="cs-label">보내기</span><span class="cs-hint">Enter</span>
-  </button>
 </div>
 
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">

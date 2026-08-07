@@ -85,15 +85,15 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #meeting-members { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
 
 /* ── Control bar (프리셋) ── 입력창과 같은 radius 계열, 보조 액션이라 외곽선만 */
-#controls { padding: 8px 16px 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+#controls { padding: 8px 16px; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 #controls .ctrl-label { color: var(--dim); font-size: 11px; margin-right: 4px; }
 #controls button { background: transparent; color: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 5px 12px; font-size: 11px; cursor: pointer; font-family: inherit; transition: color 0.15s, border-color 0.15s; }
 #controls button:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
 #controls button:disabled { opacity: 0.35; cursor: not-allowed; }
 #controls button.running { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
 
-/* ── Messenger (right) ── */
-#messenger { width: clamp(380px, 34vw, 560px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+/* ── Messenger (right) ── 입력창이 여기 들어가므로 패널 폭이 곧 입력 폭이다 */
+#messenger { width: clamp(440px, 44vw, 760px); background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
 #messenger-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--border); }
 #messenger-header h3 { font-size: 13px; font-weight: 700; }
 #messenger-header .font-controls { display: flex; gap: 4px; align-items: center; }
@@ -177,9 +177,9 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 @keyframes vignette-fade { 0% { opacity: 1; } 100% { opacity: 0; } }
 
 /* ── 지시 채팅 (07 §10) ──
-   메신저 패널(≈480px) 안에 있던 입력창을 하단 전폭으로 뺐다. 주 인터랙션인데
-   가장 좁은 자리에서 긴 한국어 지시를 쳐야 했다. */
-#composer { position: relative; display: flex; gap: 10px; align-items: flex-end; padding: 10px 16px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+   입력창은 대화(메신저) 안에 둔다. 좁아서 불편했던 건 패널 폭 문제라
+   #messenger 자체를 넓혔다 — 입력창만 딴 데로 빼면 대화와의 연결이 끊긴다. */
+#composer { position: relative; display: flex; gap: 10px; align-items: flex-end; padding: 10px 14px 14px; border-top: 1px solid var(--border); background: var(--surface); }
 #composer textarea { flex: 1; resize: none; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 11px 14px; font-family: inherit; font-size: 13px; line-height: 1.55; min-height: 42px; max-height: 168px; transition: border-color 0.15s, box-shadow 0.15s; }
 #composer textarea::placeholder { color: var(--dim); }
 #composer textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -191,7 +191,7 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 #composer .cs-hint { font-size: 10px; font-weight: 500; opacity: 0.7; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; line-height: 15px; }
 
 /* @멘션 자동완성 — agent_id를 외우지 않아도 되게 한다 */
-#mention-pop { position: absolute; left: 16px; width: min(420px, 60vw); bottom: calc(100% - 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); max-height: 260px; overflow-y: auto; display: none; z-index: 30; padding: 4px; }
+#mention-pop { position: absolute; left: 14px; right: 14px; bottom: calc(100% - 6px); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); max-height: 260px; overflow-y: auto; display: none; z-index: 30; padding: 4px; }
 #mention-pop.visible { display: block; }
 .mp-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-radius: 7px; cursor: pointer; }
 .mp-item.sel, .mp-item:hover { background: var(--accent-soft); }
