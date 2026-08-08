@@ -19,9 +19,11 @@
 
 <div id="main">
   <div id="floor">
-    <div class="zone" id="zone-work"><span class="zone-label">Work Room</span><div class="zone-agents" id="work-agents"></div></div>
-    <div class="zone" id="zone-meeting"><span class="zone-label">Meeting Room</span><div id="meeting-info"><div class="mi-crew" id="meeting-crew">No active crew</div></div><div class="zone-agents" id="meeting-agents"></div></div>
-    <div class="zone" id="zone-lounge"><span class="zone-label">Lounge</span><div class="zone-agents" id="lounge-agents"></div></div>
+    <!-- 방·복도·문은 office.js의 ZONES 좌표에서 그린다. 여기엔 빈 층만 둔다. -->
+    <div id="floorplan">
+      <div id="meeting-info"><div class="mi-crew" id="meeting-crew">No active crew</div></div>
+      <div id="agent-layer"></div>
+    </div>
   </div>
   <div id="messenger">
     <div id="messenger-header">

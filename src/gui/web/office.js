@@ -44,6 +44,200 @@ const CREW_MAP = {
   'codegen-developer': 'Codegen', 'notion-editor': 'NotionEdit',
 };
 
+// ── Floor plan ──
+// 방 3개가 복도 하나로 이어진 한 층. 좌표는 층 전체를 100×100으로 본 비율이고,
+// 방·문·복도 DOM 위치와 이동 경로가 전부 여기서 나온다 — 두 벌로 두면 반드시 어긋난다.
+//
+//   ┌──────────┐ ┌──────────┐
+//   │ Work     │ │ Meeting  │     문: 워크룸 우하단 / 미팅룸 좌하단 / 라운지 좌상단
+//   └──────█───┘ └─█────────┘
+//   ━━━━━━━━━━━━━━━━━━━━━━━━━      ← 복도 (LANE_Y)
+//   ┌─█──────────────────────┐
+//   │ Lounge                 │
+//   └────────────────────────┘
+const LANE_Y = 59;  // 복도 중앙선 — 모든 이동은 이 선을 타고 지나간다
+const ZONES = {
+  work:    { x: 3,  y: 4,  w: 44, h: 48, label: 'Work Room',    door: { x: 41, y: 52 }, inside: 47, padY: 11 },
+  meeting: { x: 53, y: 4,  w: 44, h: 48, label: 'Meeting Room', door: { x: 59, y: 52 }, inside: 47, padY: 16 },
+  lounge:  { x: 3,  y: 66, w: 94, h: 30, label: 'Lounge',       door: { x: 9,  y: 66 }, inside: 71, padY: 11 },
+};
+const CORRIDORS = [
+  { x: 3,  y: 52, w: 94, h: 14 },  // 메인 복도 (가로) — 세 문이 모두 여기로 열린다
+  { x: 47, y: 4,  w: 6,  h: 48 },  // 워크룸-미팅룸 사이 (세로)
+];
+// colStep은 방 하나가 전원(13명)을 수용할 수 있게 잡는다 — 다 몰려도 자리가 방 밖으로 나가면 안 된다.
+const SEAT = { padX: 5, colStep: 7.8, rowStep: 12 };
+const seatsTaken = { work: new Set(), meeting: new Set(), lounge: new Set() };
+
+function renderFloorplan() {
+  const fp = document.getElementById('floorplan');
+  CORRIDORS.forEach(c => fp.appendChild(styledBox('corridor', c)));
+  for (const [key, z] of Object.entries(ZONES)) {
+    const room = styledBox('room', z);
+    room.id = `room-${key}`;
+    room.innerHTML = `<span class="room-label">${z.label}</span>`;
+    fp.appendChild(room);
+    const door = document.createElement('div');
+    door.className = 'door';
+    door.id = `door-${key}`;
+    door.style.left = z.door.x + '%';
+    door.style.top = z.door.y + '%';
+    fp.appendChild(door);
+  }
+  document.getElementById('room-meeting').appendChild(document.getElementById('meeting-info'));
+}
+
+function styledBox(cls, r) {
+  const el = document.createElement('div');
+  el.className = cls;
+  Object.assign(el.style, { left: r.x + '%', top: r.y + '%', width: r.w + '%', height: r.h + '%' });
+  return el;
+}
+
+// 자리는 방마다 격자로 나눠 쓴다. 같은 칸에 두 명이 겹치지 않게 빈 번호를 집어간다.
+function seatPos(zone, idx) {
+  const z = ZONES[zone];
+  const cols = Math.max(1, Math.floor((z.w - SEAT.padX) / SEAT.colStep));
+  return {
+    x: z.x + SEAT.padX + (idx % cols) * SEAT.colStep,
+    y: z.y + z.padY + Math.floor(idx / cols) * SEAT.rowStep,
+  };
+}
+
+function takeSeat(a, zone) {
+  const used = seatsTaken[zone];
+  let i = 0;
+  while (used.has(i)) i++;
+  used.add(i);
+  a.seat = { zone, idx: i };
+  return seatPos(zone, i);
+}
+
+function releaseSeat(a) {
+  if (!a.seat) return;
+  seatsTaken[a.seat.zone].delete(a.seat.idx);
+  a.seat = null;
+}
+
+function setPos(a, p) {
+  a.pos = p;
+  a.desk_el.style.left = p.x + '%';
+  a.desk_el.style.top = p.y + '%';
+}
+
+// 첫 배치는 걷지 않는다 — 출근해 있는 상태로 시작한다.
+function placeInZone(a, zone) {
+  a.zone = a.placed = zone;
+  a.desk_el.style.transition = 'none';
+  setPos(a, takeSeat(a, zone));
+  requestAnimationFrame(() => { a.desk_el.style.transition = ''; });
+}
+
+// 경로는 전부 직각으로 꺾인다 — 사람은 벽을 뚫고 대각선으로 가지 않는다.
+function buildPath(a, to, seat) {
+  const pts = [];
+  const from = a.placed;
+  if (from) {                                             // 방 안 → 문 앞 → 문 통과
+    const f = ZONES[from];
+    pts.push({ x: f.door.x, y: a.pos.y });
+    pts.push({ x: f.door.x, y: f.inside });
+    pts.push({ x: f.door.x, y: f.door.y, door: from });
+  }
+  if (!from) {
+    // 걷던 중 지시가 바뀐 경우 — 어느 방에도 속해 있지 않다. 방금 넘은 문의 열로 돌아가야
+    // 벽을 뚫지 않는다 (그냥 제자리에서 복도로 내려가면 벽을 통과한다).
+    const back = a.viaDoor ? ZONES[a.viaDoor].door.x : a.pos.x;
+    pts.push({ x: back, y: a.pos.y });
+    pts.push({ x: back, y: a.lane });
+  } else {
+    pts.push({ x: ZONES[from].door.x, y: a.lane });                 // 복도 진입
+  }
+  const t = ZONES[to];
+  pts.push({ x: t.door.x, y: a.lane });                   // 복도 이동 (각자 다른 폭으로 지나간다)
+  pts.push({ x: t.door.x, y: t.door.y, door: to });       // 문 통과
+  pts.push({ x: t.door.x, y: t.inside });                 // 방 진입
+  pts.push({ x: t.door.x, y: seat.y });                   // 자리 줄로
+  pts.push(seat);
+  return pts;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function walk(a, to, seat, token) {
+  const path = buildPath(a, to, seat);
+  a.desk_el.classList.add('walking');
+  for (const p of path) {
+    if (a.walkToken !== token) return;                    // 걷는 중 새 지시가 오면 이 경로는 버린다
+    // 문을 넘는 순간부터는 어느 방에도 속하지 않는다. 되돌아 나갈 때 쓸 문은 기억해 둔다.
+    if (p.door) { a.placed = null; a.viaDoor = p.door; pulseDoor(p.door); }
+    // a.pos는 "직전에 지시한 지점"이라 이동 중 재지시를 받으면 실제 위치와 조금 다르다.
+    // 거리는 소요 시간 계산에만 쓰여서 오차는 걸음 속도로만 나타난다.
+    const d = Math.hypot(p.x - a.pos.x, p.y - a.pos.y);
+    if (d < 0.3) { setPos(a, p); continue; }              // 이미 그 자리면 걸을 것도 없다
+    const ms = Math.max(140, d * 26 * a.pace);            // 전이 시간은 좌표를 바꾸기 전에 걸어야 한다
+    a.desk_el.style.transition = `left ${ms}ms linear, top ${ms}ms linear, transform 0.15s ease`;
+    setPos(a, p);
+    await sleep(ms);
+  }
+  if (a.walkToken !== token) return;
+  a.placed = to;
+  a.desk_el.classList.remove('walking');
+}
+
+// 좌표를 손대면 조용히 깨지는 것만 본다: 대각선 이동, 문이 아닌 곳으로 벽 통과, 방 밖으로 나간 자리.
+// ?selftest 를 붙여 열면 콘솔에 결과가 찍힌다.
+function selfCheck() {
+  const fail = [];
+  const zones = Object.keys(ZONES);
+  // 세로 이동이 어떤 방의 벽선을 넘는다면 그 x는 반드시 그 방의 문이어야 한다.
+  const wallHit = (prev, p) => {
+    if (Math.abs(p.x - prev.x) > 0.01) return null;
+    const [lo, hi] = [Math.min(prev.y, p.y), Math.max(prev.y, p.y)];
+    for (const [k, z] of Object.entries(ZONES)) {
+      if (p.x < z.x || p.x > z.x + z.w) continue;
+      for (const wall of [z.y, z.y + z.h])
+        if (wall > lo + 0.01 && wall < hi - 0.01 && Math.abs(p.x - z.door.x) > 0.01) return k;
+    }
+    return null;
+  };
+  for (const to of zones) {
+    // from: 방에서 출발 / null: 걷던 중 재지시(문을 갓 넘은 상태, 방 안에서 끊긴 상태)
+    const cases = zones.map(z => ({ placed: z, pos: seatPos(z, 5) }));
+    cases.push({ placed: null, viaDoor: to, pos: { x: 30, y: LANE_Y } });
+    zones.forEach(z => cases.push({ placed: null, viaDoor: z, pos: seatPos(z, 4) }));
+    for (const c of cases) {
+      const a = { ...c, lane: LANE_Y + 2.4 };
+      const path = buildPath(a, to, seatPos(to, 0));
+      let prev = a.pos;
+      for (const p of path) {
+        if (Math.abs(p.x - prev.x) > 0.01 && Math.abs(p.y - prev.y) > 0.01)
+          fail.push(`대각선 이동 ${c.placed || 'corridor'}→${to}: (${prev.x},${prev.y})→(${p.x},${p.y})`);
+        const hit = wallHit(prev, p);
+        if (hit) fail.push(`벽 통과 ${c.placed || 'corridor'}→${to}: ${hit} 벽을 x=${p.x}에서 넘음`);
+        prev = p;
+      }
+    }
+    const z = ZONES[to];
+    for (let i = 0; i < 13; i++) {
+      const s = seatPos(to, i);
+      if (s.x < z.x || s.x > z.x + z.w || s.y < z.y || s.y > z.y + z.h)
+        fail.push(`자리 ${to}#${i}가 방 밖: (${s.x.toFixed(1)},${s.y.toFixed(1)})`);
+    }
+    if (Math.abs(z.door.y - z.y) > 0.01 && Math.abs(z.door.y - (z.y + z.h)) > 0.01)
+      fail.push(`${to} 문이 벽 위에 없음`);
+  }
+  console[fail.length ? 'error' : 'log']('floorplan selfCheck:', fail.length ? fail : 'ok');
+  return fail;
+}
+if (location.search.includes('selftest')) selfCheck();
+
+function pulseDoor(zone) {
+  const el = document.getElementById(`door-${zone}`);
+  if (!el) return;
+  el.classList.add('open');
+  setTimeout(() => el.classList.remove('open'), 600);
+}
+
 // ── State ──
 const state = {
   agents: {},
@@ -63,7 +257,8 @@ async function init() {
   ]);
 
   state.roster = agents.filter(a => a.agent_id);
-  const loungeEl = document.getElementById('lounge-agents');
+  renderFloorplan();
+  const layerEl = document.getElementById('agent-layer');
   agents.forEach(a => {
     const id = a.agent_id || a.role;
     const role = a.role || id;
@@ -75,8 +270,12 @@ async function init() {
     el.title = role;
     el.innerHTML = `<div class="av-circle" style="background:${color}">${initials}<span class="av-status"></span></div><div class="av-name">${shortName(role)}</div><div class="av-speech"></div>`;
     el.onclick = () => openProfile(role);
-    loungeEl.appendChild(el);
-    state.agents[role] = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.av-status'), speech_el: el.querySelector('.av-speech'), agentId: id, zone: 'lounge' };
+    layerEl.appendChild(el);
+    // pace(걸음 속도) · lane(복도에서 걷는 폭)은 사람마다 다르게 고정한다.
+    // 같은 지시를 받은 무리가 줄 맞춰 겹쳐 미끄러지면 사람으로 안 보인다.
+    const agent = { role, crew, status: 'idle', speech: '', desk_el: el, icon_el: el.querySelector('.av-status'), speech_el: el.querySelector('.av-speech'), agentId: id, zone: 'lounge', placed: 'lounge', pos: { x: 0, y: 0 }, seat: null, walkToken: 0, pace: 0.85 + Math.random() * 0.35, lane: LANE_Y + (Math.random() - 0.5) * 5 };
+    state.agents[role] = agent;
+    placeInZone(agent, 'lounge');
     state.agentStats[role] = { tasks: 0, tasksDone: 0, tokens: 0, errors: 0, lastSpeech: '', history: [] };
   });
 
@@ -317,11 +516,11 @@ function setAgentStatus(a, status) {
 function moveToZone(a, zone) {
   if (a.zone === zone) return;
   a.zone = zone;
-  const containers = { work: 'work-agents', meeting: 'meeting-agents', lounge: 'lounge-agents' };
-  const target = document.getElementById(containers[zone]);
-  if (target && a.desk_el.parentElement !== target) {
-    target.appendChild(a.desk_el);
-  }
+  releaseSeat(a);
+  const seat = takeSeat(a, zone);
+  const token = ++a.walkToken;
+  // 여럿이 같이 불려가도 출발 시각이 제각각이어야 문 앞에서 뭉치지 않는다.
+  setTimeout(() => { if (a.walkToken === token) walk(a, zone, seat, token); }, Math.random() * 1400);
 }
 
 function resetAllDesks() { Object.values(state.agents).forEach(a => setAgentStatus(a, 'idle')); }

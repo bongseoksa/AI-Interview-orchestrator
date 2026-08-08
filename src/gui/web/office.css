@@ -49,38 +49,46 @@ body { font-family: 'Pretendard', -apple-system, 'Apple SD Gothic Neo', 'Noto Sa
 /* ── Main ── */
 #main { display: flex; flex: 1; overflow: hidden; }
 
-/* ── Floor (left) ── */
-/* 라운지는 아바타 한 줄이면 충분하다. 남는 높이는 작업/회의실이 갖는다
-   (회의가 시작되면 참석자가 그쪽으로 이동한다). */
-#floor { flex: 1; padding: 12px; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr auto; gap: 10px; overflow-y: auto; }
+/* ── Floor (left) ── 방 3개가 복도 하나로 이어진 단일 사무실.
+   방·문·복도의 좌표는 office.js의 ZONES/CORRIDORS가 단일 출처다 (여기엔 모양만 둔다). */
+#floor { flex: 1; padding: 14px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#floorplan { position: relative; width: 100%; aspect-ratio: 8 / 5; max-height: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; }
 
-/* ── Zones ── */
-.zone { background: var(--surface); border-radius: 10px; padding: 10px; position: relative; border: 1px solid var(--border); }
-.zone-label { position: absolute; top: 8px; left: 12px; font-size: 10px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+/* 복도 — 방들 사이의 빈 공간이 아니라 "지나다니는 곳"으로 읽혀야 해서
+   바닥색을 깔고 테두리를 준다. 반투명하게 두면 밝은 테마에서 사라진다. */
+.corridor { position: absolute; background: var(--surface2); box-shadow: inset 0 0 0 1px var(--border); border-radius: 4px; }
 
-#zone-work { grid-column: 1 / 2; grid-row: 1 / 2; }
-#zone-meeting { grid-column: 2 / 3; grid-row: 1 / 2; border-color: var(--accent-soft); }
-#zone-lounge { grid-column: 1 / 3; grid-row: 2 / 3; min-height: 80px; background: linear-gradient(135deg, var(--surface) 0%, var(--green-soft) 100%); }
+.room { position: absolute; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+.room-label { position: absolute; top: 8px; left: 12px; font-size: 10px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; opacity: 0.6; }
+#room-meeting { border-color: var(--accent-soft); }
+#room-lounge { background: linear-gradient(135deg, var(--surface) 0%, var(--green-soft) 100%); }
 
-.zone-agents { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 24px; align-content: flex-start; }
+/* 문 — 벽을 끊어낸 틈. 누가 통과할 때만 잠깐 빛난다. */
+.door { position: absolute; width: 42px; height: 7px; transform: translate(-50%, -50%); background: var(--bg); border-radius: 3px; box-shadow: 0 0 0 1px var(--border); z-index: 3; transition: background 0.2s, box-shadow 0.2s; }
+.door.open { background: var(--accent); box-shadow: 0 0 12px var(--accent); }
 
-/* Room furniture indicators */
-#zone-work::after { content: ''; position: absolute; bottom: 8px; right: 10px; width: 40px; height: 20px; border: 1px solid var(--border); border-radius: 3px; opacity: 0.3; }
-#zone-meeting::after { content: ''; position: absolute; bottom: 12px; right: 14px; width: 28px; height: 28px; border: 2px solid var(--accent-soft); border-radius: 50%; opacity: 0.4; }
-#zone-lounge::after { content: ''; position: absolute; bottom: 6px; right: 12px; font-size: 16px; opacity: 0.15; content: '\1F33F'; }
+#agent-layer { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
 
-/* ── Agent avatar (compact) ── */
-.agent-av { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; transition: transform 0.4s ease, opacity 0.3s; width: 64px; }
-.agent-av:hover { transform: scale(1.1); }
+/* Room furniture indicators — 문 위치와 겹치지 않는 구석에 둔다 */
+#room-work::after { content: ''; position: absolute; bottom: 10px; left: 12px; width: 44px; height: 20px; border: 1px solid var(--border); border-radius: 3px; opacity: 0.3; }
+#room-meeting::after { content: ''; position: absolute; bottom: 12px; right: 16px; width: 30px; height: 30px; border: 2px solid var(--accent-soft); border-radius: 50%; opacity: 0.5; }
+#room-lounge::after { content: '\1F33F'; position: absolute; bottom: 6px; right: 14px; font-size: 18px; opacity: 0.18; }
+
+/* ── Agent avatar (compact) ── 좌표 위에 떠 있고, 걸을 땐 left/top이 전이된다 */
+.agent-av { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; width: 54px; z-index: 6; transition: transform 0.15s ease; }
+.agent-av:hover { transform: translate(-50%, -50%) scale(1.12); z-index: 20; }
+.agent-av.walking { z-index: 15; }
+.agent-av.walking .av-circle { animation: bob 0.42s ease-in-out infinite alternate; }
+@keyframes bob { from { transform: translateY(0); } to { transform: translateY(-3px); } }
 .agent-av .av-circle { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; border: 2px solid transparent; transition: all 0.3s; position: relative; }
 .agent-av.active .av-circle { border-color: var(--accent); box-shadow: 0 0 10px var(--accent); }
 .agent-av.error .av-circle { border-color: var(--red); box-shadow: 0 0 10px var(--red); }
 .agent-av .av-circle .av-status { position: absolute; bottom: -2px; right: -2px; font-size: 12px; line-height: 1; }
-.agent-av .av-name { font-size: 9px; color: var(--dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 64px; }
+.agent-av .av-name { font-size: 9px; color: var(--dim); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 54px; }
 .agent-av .av-speech { font-size: 8px; color: var(--dim); text-align: center; max-width: 64px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
 
 /* Meeting room content */
-#meeting-info { font-size: 11px; color: var(--dim); padding-top: 24px; }
+#meeting-info { position: absolute; top: 24px; left: 12px; right: 12px; font-size: 11px; color: var(--dim); }
 #meeting-info .mi-crew { font-weight: 700; color: var(--text); font-size: 12px; margin-bottom: 4px; }
 #meeting-members { display: flex; flex-wrap: wrap; gap: 6px; padding-top: 4px; }
 
