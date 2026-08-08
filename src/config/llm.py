@@ -22,11 +22,11 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from typing import Callable, Dict, Any
 
 from crewai import LLM
 
 # 기본 모델: Gemma 4 12B — tool-call 신뢰도 최고, 빠르고 가벼움
-# Gemma 4는 네이티브 function calling 내장 (Google 설계)
 DEFAULT_MODEL = "ollama/gemma4:12b"
 
 # 고성능 모델: Gemma 4 26B MoE (4B 활성) — 복잡한 분석/설계 시 사용
@@ -62,21 +62,44 @@ def _get_available_models() -> set[str]:
 
 def _is_model_available(model: str) -> bool:
     """Ollama에 해당 모델이 설치되어 있는지 확인한다."""
-    # CrewAI 형식 "ollama/gemma4:12b" → Ollama API 형식 "gemma4:12b"
     ollama_name = model.removeprefix("ollama/")
     return ollama_name in _get_available_models()
 
 
-def get_llm(model: str | None = None) -> LLM:
-    """Ollama LLM 인스턴스 반환. 요청 모델이 미설치면 DEFAULT_MODEL로 fallback."""
+def get_llm(model: str | None = None, model_type_map: Dict[str, str] | None = None) -> LLM:
+    """
+    Ollama LLM 인스턴스 반환. 
+    
+    Args:
+        model: 요청할 모델명 (e.g., 'ollama/gemma4:12b')
+        model_type_map: 특정 타입(high_perf)을 매핑하는 사전. 
+                        예: {'high_perf': 'ollama/gemma4:26b'}
+    """
     requested = model or DEFAULT_MODEL
+    
+    # 타입 기반 매핑 처리 (Dependency Injection Interface)
+    if model_type_map and not requested.startswith("ollama/"):
+        # 만약 요청된 것이 단순 식별자라면(예: 'high_perf') 맵에서 찾음
+        requested = model_type_map.get(requested, DEFAULT_MODEL)
+
     if not _is_model_available(requested) and requested != DEFAULT_MODEL:
         fallback = DEFAULT_MODEL
         ollama_name = requested.removeprefix("ollama/")
         default_name = fallback.removeprefix("ollama/")
         print(f"  [LLM fallback] {ollama_name} 미설치 → {default_name} 사용")
         requested = fallback
+        
     return LLM(
         model=requested,
         base_url=OLLAMA_BASE_URL,
     )
+
+def get_llm_factory(model_type_map: Dict[str, str] | None = None) -> Callable[[str], LLM]:
+    """
+    특정 모델 타입을 주면 LLM을 반환하는 Factory 함수를 생성합니다.
+    이 방식은 Crew의 의존성 주입(DI)를 용이하게 합니다.
+    """
+    def factory(model_type: str) -> LLM:
+        # 전달받은 model_type이 맵에 있으면 해당 모델로, 없으면 기본값으로 호출
+        return get_llm(model=model_type, model_type_map=model_type_map)
+    return factory
