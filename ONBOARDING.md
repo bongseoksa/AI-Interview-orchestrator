@@ -1,6 +1,6 @@
-# AI-Interview-orchestrator 온보딩 가이드
+# AI-orchestrator 온보딩 가이드
 
-이 문서는 AI-Interview-orchestrator 레포에 처음 참여하는 사람(또는 에이전트)이
+이 문서는 AI-orchestrator 레포에 처음 참여하는 사람(또는 에이전트)이
 환경 설정부터 실행, 종료까지 빠르게 시작할 수 있도록 안내한다.
 
 ---
@@ -25,7 +25,7 @@
 ## 3. 설치
 
 ```bash
-cd AI-Interview-orchestrator
+cd AI-orchestrator
 
 # Git pre-commit 훅 활성화 (최초 1회)
 git config core.hooksPath .githooks

@@ -1,4 +1,4 @@
-# CLAUDE.md — AI-Interview-orchestrator
+# CLAUDE.md — AI-orchestrator
 
 에이전트 정의 원본 및 워크플로우를 관리하는 오케스트레이터 레포.
 

@@ -224,7 +224,7 @@ def collect_logs() -> list[dict]:
 def collect_cross_repo_context() -> str:
     """3개 레포의 git log 요약을 수집한다."""
     repos = {
-        "orchestrator": AI_INTERVIEW_ROOT / "AI-Interview-orchestrator",
+        "orchestrator": AI_INTERVIEW_ROOT / "AI-orchestrator",
         "web": AI_INTERVIEW_ROOT / "AI-Interview-web",
         "server": AI_INTERVIEW_ROOT / "AI-Interview-server",
     }

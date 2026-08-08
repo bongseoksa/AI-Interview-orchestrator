@@ -17,7 +17,7 @@ from src.tools.file_tools import list_directory_recursive, read_file, write_file
 
 # === 3개 레포 경로 ===
 BASE = "/Users/bongseok.sa/Desktop/workspace/personal/AI-Interview"
-ORCH = f"{BASE}/AI-Interview-orchestrator"
+ORCH = f"{BASE}/AI-orchestrator"
 WEB = f"{BASE}/AI-Interview-web"
 SERVER = f"{BASE}/AI-Interview-server"
 

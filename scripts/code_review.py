@@ -70,7 +70,7 @@ fe_senior = Agent(
 BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 WEB_REPO = os.path.join(BASE, "AI-Interview-web")
 SERVER_REPO = os.path.join(BASE, "AI-Interview-server")
-ORCH_REPO = os.path.join(BASE, "AI-Interview-orchestrator")
+ORCH_REPO = os.path.join(BASE, "AI-orchestrator")
 
 # --- 태스크 정의 ---
 
